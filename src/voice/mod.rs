@@ -7,3 +7,4 @@ pub mod transcription_whisper;
 pub mod tts;
 pub mod tts_providers;
 pub mod wake_word;
+pub mod assistant;

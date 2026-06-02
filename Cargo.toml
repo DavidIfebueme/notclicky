@@ -15,6 +15,7 @@ anyhow = "1"
 async-trait = "0.1"
 dirs = "6"
 reqwest = { version = "0.12", features = ["stream", "json", "rustls-tls"], default-features = false }
+eventsource-stream = "0.2"
 x11rb = { version = "0.13", features = ["xkb"] }
 ksni = "0.2"
 pipewire = "0.10"

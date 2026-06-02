@@ -261,10 +261,17 @@ fn extract_text(val: &serde_json::Value) -> String {
 }
 
 pub async fn play_agent_done_sound(home_dir: &std::path::Path) {
-    let sound_path = home_dir.join("resources").join("agent-done.mp3");
-    if !sound_path.exists() {
-        return;
-    }
+    let candidates = vec![
+        home_dir.join("resources").join("agent-done.mp3"),
+        std::path::PathBuf::from("resources/agent-done.mp3"),
+        std::path::PathBuf::from("/usr/share/notclicky/agent-done.mp3"),
+    ];
+
+    let sound_path = match candidates.into_iter().find(|p| p.exists()) {
+        Some(p) => p,
+        None => return,
+    };
+
     let _ = std::process::Command::new("paplay")
         .arg(&sound_path)
         .spawn();

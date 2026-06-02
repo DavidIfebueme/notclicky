@@ -16,12 +16,11 @@ pub struct Rect {
     pub height: f64,
 }
 
-#[async_trait]
-pub trait Overlay: Send + Sync {
-    fn show_cursor(&self, point: Point, accent: &str, duration_ms: u32) -> Result<()>;
-    fn show_cursors(&self, points: Vec<Point>, accent: &str, duration_ms: u32) -> Result<()>;
-    fn show_caption(&self, text: &str, x: f64, y: f64, accent: &str, duration_ms: u32) -> Result<()>;
-    fn show_highlight(&self, rect: Rect, accent: &str, duration_ms: u32) -> Result<()>;
-    fn show_scribble(&self, points: Vec<Point>, accent: &str, duration_ms: u32) -> Result<()>;
-    fn clear(&self) -> Result<()>;
+pub enum OverlayCommand {
+    ShowCursor(Point, String, u32),
+    ShowCursors(Vec<Point>, String, u32),
+    ShowCaption(String, f64, f64, String, u32),
+    ShowHighlight(Rect, String, u32),
+    ShowScribble(Vec<Point>, String, u32),
+    Clear,
 }

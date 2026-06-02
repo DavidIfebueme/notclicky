@@ -1,7 +1,6 @@
 use anyhow::Result;
 
 use crate::voice::push_to_talk::GlobalHotkey;
-use crate::overlay::cursor::Overlay;
 use crate::screen::capture::ScreenCapture;
 
 pub enum Backend {
@@ -15,13 +14,6 @@ impl Backend {
             Ok("wayland") => Backend::Wayland,
             _ => Backend::X11,
         }
-    }
-}
-
-pub fn create_overlay(backend: &Backend) -> Result<Box<dyn Overlay>> {
-    match backend {
-        Backend::X11 => Ok(Box::new(crate::overlay::x11::X11Overlay::new()?)),
-        Backend::Wayland => Ok(Box::new(crate::overlay::wayland::WaylandOverlay::new()?)),
     }
 }
 

@@ -1,6 +1,8 @@
 use anyhow::Result;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -146,4 +148,96 @@ pub fn load() -> Result<AppConfig> {
     let contents = fs::read_to_string(&path)?;
     let config: AppConfig = toml::from_str(&contents)?;
     Ok(config)
+}
+
+pub struct Secrets {
+    values: HashMap<String, String>,
+}
+
+const SECRET_KEYS: &[&str] = &[
+    "ZAI_API_KEY",
+    "DEEPGRAM_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "ELEVENLABS_API_KEY",
+    "ELEVENLABS_VOICE_ID",
+    "CARTESIA_API_KEY",
+    "ASSEMBLYAI_API_KEY",
+];
+
+impl Secrets {
+    pub fn load() -> Result<Self> {
+        let mut values = HashMap::new();
+
+        let path = config_dir().join("secrets.env");
+        if path.exists() {
+            let file_values = parse_env_file(&path)?;
+            values.extend(file_values);
+        }
+
+        for key in SECRET_KEYS {
+            if let Ok(val) = std::env::var(key) {
+                values.entry(key.to_string()).or_insert(val);
+            }
+        }
+
+        Ok(Self { values })
+    }
+
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.values.get(key).map(|s| s.as_str())
+    }
+
+    pub fn require(&self, key: &str) -> Result<&str> {
+        self.get(key).ok_or_else(|| {
+            anyhow::anyhow!(
+                "{} not found. Add it to ~/.config/notclicky/secrets.env",
+                key
+            )
+        })
+    }
+
+    pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
+        self.values.insert(key.to_string(), value.to_string());
+        self.save()
+    }
+
+    fn save(&self) -> Result<()> {
+        let dir = config_dir();
+        fs::create_dir_all(&dir)?;
+
+        let path = dir.join("secrets.env");
+        let content: String = self
+            .values
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        fs::write(&path, content)?;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+
+        Ok(())
+    }
+}
+
+pub fn parse_env_file(path: &std::path::Path) -> Result<HashMap<String, String>> {
+    let content = fs::read_to_string(path)?;
+    let mut map = HashMap::new();
+
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if let Some((key, value)) = line.split_once('=') {
+            let key = key.trim().to_string();
+            let value = value.trim().to_string();
+            if !key.is_empty() {
+                map.insert(key, value);
+            }
+        }
+    }
+
+    Ok(map)
 }

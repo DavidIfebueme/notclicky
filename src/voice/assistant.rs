@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::ai::providers::LlmProvider;
 use crate::ai::streaming_pipeline::SentenceStream;
+use crate::agent::process::AgentManager;
 use crate::screen::capture::ScreenCapture;
 use crate::voice::capture::AudioCapture;
 use crate::voice::push_to_talk::GlobalHotkey;
@@ -18,6 +19,7 @@ pub struct VoiceAssistant {
     llm: Arc<Mutex<Box<dyn LlmProvider>>>,
     tts: Arc<Mutex<Box<dyn TtsProvider>>>,
     screen: Arc<Mutex<Box<dyn ScreenCapture>>>,
+    agent_manager: Arc<Mutex<Option<AgentManager>>>,
     system_prompt: String,
     running: Arc<AtomicBool>,
     on_transcript: Arc<Mutex<Option<TranscriptCallback>>>,
@@ -40,6 +42,7 @@ impl VoiceAssistant {
             llm: Arc::new(Mutex::new(llm)),
             tts: Arc::new(Mutex::new(tts)),
             screen: Arc::new(Mutex::new(screen)),
+            agent_manager: Arc::new(Mutex::new(None)),
             system_prompt,
             running: Arc::new(AtomicBool::new(false)),
             on_transcript: Arc::new(Mutex::new(None)),
@@ -48,6 +51,10 @@ impl VoiceAssistant {
 
     pub fn set_on_transcript(&self, cb: TranscriptCallback) {
         *self.on_transcript.lock().unwrap() = Some(cb);
+    }
+
+    pub fn set_agent_manager(&self, manager: AgentManager) {
+        *self.agent_manager.lock().unwrap() = Some(manager);
     }
 
     pub fn start(&self) -> anyhow::Result<()> {
@@ -63,6 +70,7 @@ impl VoiceAssistant {
         let screen = self.screen.clone();
         let system_prompt = self.system_prompt.clone();
         let on_transcript = self.on_transcript.clone();
+        let agent_manager = self.agent_manager.clone();
         let sample_rate = capture.lock().unwrap().sample_rate();
 
         std::thread::spawn(move || {
@@ -95,9 +103,17 @@ impl VoiceAssistant {
                             }
 
                             if !transcript.text.trim().is_empty() {
-                                let _ = rt.block_on(process_response(
-                                    &llm, &tts, &system_prompt, &transcript.text, screenshot.as_ref(),
-                                ));
+                                if is_agent_request(&transcript.text) {
+                                    let agent_prompt = strip_agent_keyword(&transcript.text);
+                                    let mgr = agent_manager.lock().unwrap();
+                                    if let Some(ref mgr) = *mgr {
+                                        let _ = rt.block_on(mgr.spawn(agent_prompt, None, None));
+                                    }
+                                } else {
+                                    let _ = rt.block_on(process_response(
+                                        &llm, &tts, &system_prompt, &transcript.text, screenshot.as_ref(),
+                                    ));
+                                }
                             }
                         }
                     }
@@ -198,4 +214,20 @@ fn base64_encode(data: &[u8]) -> String {
         }
     }
     out
+}
+
+pub fn is_agent_request(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    lower.starts_with("agent ") || lower.starts_with("clicky agent ") || lower.contains(" agent,") || lower.contains(" agent:")
+}
+
+pub fn strip_agent_keyword(text: &str) -> String {
+    let lower = text.to_lowercase();
+    if lower.starts_with("clicky agent ") {
+        text["clicky agent ".len()..].to_string()
+    } else if lower.starts_with("agent ") {
+        text["agent ".len()..].to_string()
+    } else {
+        text.to_string()
+    }
 }

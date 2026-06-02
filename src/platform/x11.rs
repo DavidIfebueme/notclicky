@@ -35,10 +35,6 @@ impl X11Hotkey {
             running: Arc::new(AtomicBool::new(false)),
         })
     }
-
-    pub fn is_pressed(&self) -> bool {
-        self.pressed.load(Ordering::SeqCst)
-    }
 }
 
 #[async_trait]
@@ -89,6 +85,10 @@ impl GlobalHotkey for X11Hotkey {
     fn unregister(&self) -> Result<()> {
         self.running.store(false, Ordering::SeqCst);
         Ok(())
+    }
+
+    fn is_pressed(&self) -> bool {
+        self.pressed.load(Ordering::SeqCst)
     }
 }
 

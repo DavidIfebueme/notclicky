@@ -20,4 +20,8 @@ impl GlobalHotkey for WaylandHotkey {
     fn unregister(&self) -> Result<()> {
         anyhow::bail!("Global hotkeys are not supported on Wayland")
     }
+
+    fn is_pressed(&self) -> bool {
+        false
+    }
 }

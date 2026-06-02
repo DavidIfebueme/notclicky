@@ -2,6 +2,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::Stream;
 
+pub mod anthropic;
+pub mod ollama;
+pub mod openai;
+pub mod openai_compat;
+
 #[derive(Debug, Clone)]
 pub struct LlmMessage {
     pub role: String,

@@ -33,8 +33,8 @@ struct HealthResponse {
     version: String,
 }
 
-pub async fn start_server(state: AppState) -> Result<()> {
-    let app = Router::new()
+pub fn build_router(state: AppState) -> Router {
+    Router::new()
         .route("/health", get(health))
         .route("/cursor", post(cursor))
         .route("/cursors", post(cursors))
@@ -55,14 +55,18 @@ pub async fn start_server(state: AppState) -> Result<()> {
         .route("/v1/chat/completions", post(inference_proxy_chat))
         .route("/v1/messages", post(inference_proxy_messages))
         .route("/v1/responses", post(inference_proxy_responses))
-        .with_state(state);
+        .with_state(state)
+}
+
+pub async fn start_server(state: AppState) -> Result<()> {
+    let app = build_router(state);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", PORT)).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }
 
-async fn health(State(_state): State<AppState>) -> Json<Value> {
+pub async fn health(State(_state): State<AppState>) -> Json<Value> {
     Json(json!({
         "status": "ok",
         "tools": [
@@ -85,7 +89,7 @@ struct CursorRequest {
 
 fn default_accent() -> String { "blue".to_string() }
 
-async fn cursor(State(state): State<AppState>, Json(req): Json<CursorRequest>) -> StatusCode {
+pub async fn cursor(State(state): State<AppState>, Json(req): Json<CursorRequest>) -> StatusCode {
     let point = crate::overlay::cursor::Point { x: req.x, y: req.y, label: req.label };
     let _ = state.overlay_tx.send(OverlayCommand::ShowCursor(point, req.accent, 0));
     let _ = state.event_tx.send(json!({"type": "cursor", "x": req.x, "y": req.y}));
@@ -97,7 +101,7 @@ struct CursorsRequest {
     cursors: Vec<CursorRequest>,
 }
 
-async fn cursors(State(state): State<AppState>, Json(req): Json<CursorsRequest>) -> StatusCode {
+pub async fn cursors(State(state): State<AppState>, Json(req): Json<CursorsRequest>) -> StatusCode {
     let points: Vec<crate::overlay::cursor::Point> = req.cursors.into_iter().map(|c| {
         crate::overlay::cursor::Point { x: c.x, y: c.y, label: c.label }
     }).collect();
@@ -113,7 +117,7 @@ struct ScribbleRequest {
     accent: String,
 }
 
-async fn scribble(State(state): State<AppState>, Json(req): Json<ScribbleRequest>) -> StatusCode {
+pub async fn scribble(State(state): State<AppState>, Json(req): Json<ScribbleRequest>) -> StatusCode {
     let _ = state.overlay_tx.send(OverlayCommand::ShowScribble(req.points, req.accent, 0));
     StatusCode::OK
 }
@@ -128,7 +132,7 @@ struct HighlightRequest {
     accent: String,
 }
 
-async fn highlight(State(state): State<AppState>, Json(req): Json<HighlightRequest>) -> StatusCode {
+pub async fn highlight(State(state): State<AppState>, Json(req): Json<HighlightRequest>) -> StatusCode {
     let rect = crate::overlay::cursor::Rect { x: req.x, y: req.y, width: req.width, height: req.height };
     let _ = state.overlay_tx.send(OverlayCommand::ShowHighlight(rect, req.accent, 0));
     StatusCode::OK
@@ -143,12 +147,12 @@ struct CaptionRequest {
     accent: String,
 }
 
-async fn caption(State(state): State<AppState>, Json(req): Json<CaptionRequest>) -> StatusCode {
+pub async fn caption(State(state): State<AppState>, Json(req): Json<CaptionRequest>) -> StatusCode {
     let _ = state.overlay_tx.send(OverlayCommand::ShowCaption(req.text, req.x, req.y, req.accent, 0));
     StatusCode::OK
 }
 
-async fn screenshot(State(state): State<AppState>) -> Result<Json<Value>, StatusCode> {
+pub async fn screenshot(State(state): State<AppState>) -> Result<Json<Value>, StatusCode> {
     let result = state.screen.lock().await.capture_cursor_screen().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let b64 = base64_encode(&result.image_data);
     Ok(Json(json!({
@@ -166,7 +170,7 @@ struct ClickRequest {
     y: i32,
 }
 
-async fn click(Json(req): Json<ClickRequest>) -> StatusCode {
+pub async fn click(Json(req): Json<ClickRequest>) -> StatusCode {
     let _ = std::process::Command::new("xdotool")
         .args(["click", "1", "--delay", "0"])
         .output();
@@ -181,7 +185,7 @@ struct SpeakRequest {
     text: String,
 }
 
-async fn speak(State(state): State<AppState>, Json(req): Json<SpeakRequest>) -> StatusCode {
+pub async fn speak(State(state): State<AppState>, Json(req): Json<SpeakRequest>) -> StatusCode {
     let tts = state.tts.lock().await;
     match tts.synthesize(&req.text).await {
         Ok(audio) => {
@@ -198,14 +202,14 @@ struct NotifyRequest {
     body: String,
 }
 
-async fn notify(Json(req): Json<NotifyRequest>) -> StatusCode {
+pub async fn notify(Json(req): Json<NotifyRequest>) -> StatusCode {
     let _ = std::process::Command::new("notify-send")
         .args([&req.title, &req.body])
         .output();
     StatusCode::OK
 }
 
-async fn clear(State(state): State<AppState>) -> StatusCode {
+pub async fn clear(State(state): State<AppState>) -> StatusCode {
     let _ = state.overlay_tx.send(OverlayCommand::Clear);
     StatusCode::OK
 }

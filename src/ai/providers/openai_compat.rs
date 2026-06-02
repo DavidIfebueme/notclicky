@@ -139,7 +139,7 @@ impl LlmProvider for OpenAiCompatProvider {
                             return None;
                         }
                         let chunk: StreamChunk = serde_json::from_str(&event.data).ok()?;
-                        let content = chunk.choices.first()?.delta.content?;
+                        let content = chunk.choices.first()?.delta.content.clone()?;
                         Some(Ok(content))
                     }
                     Err(e) => Some(Err(anyhow::anyhow!("SSE error: {}", e))),

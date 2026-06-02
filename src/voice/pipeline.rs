@@ -4,28 +4,35 @@ use std::time::Duration;
 
 use crate::voice::capture::AudioCapture;
 use crate::voice::push_to_talk::GlobalHotkey;
+use crate::voice::transcription::{SttProvider, Transcript};
 
-type AudioCallback = Box<dyn Fn(Vec<f32>) + Send + 'static>;
+type TranscriptCallback = Box<dyn Fn(Transcript) + Send + 'static>;
 
 pub struct VoicePipeline {
     hotkey: Arc<Mutex<Box<dyn GlobalHotkey>>>,
     capture: Arc<Mutex<AudioCapture>>,
+    stt: Arc<Mutex<Box<dyn SttProvider>>>,
     running: Arc<AtomicBool>,
-    on_audio: Arc<Mutex<Option<AudioCallback>>>,
+    on_transcript: Arc<Mutex<Option<TranscriptCallback>>>,
 }
 
 impl VoicePipeline {
-    pub fn new(hotkey: Box<dyn GlobalHotkey>, capture: AudioCapture) -> Self {
+    pub fn new(
+        hotkey: Box<dyn GlobalHotkey>,
+        capture: AudioCapture,
+        stt: Box<dyn SttProvider>,
+    ) -> Self {
         Self {
             hotkey: Arc::new(Mutex::new(hotkey)),
             capture: Arc::new(Mutex::new(capture)),
+            stt: Arc::new(Mutex::new(stt)),
             running: Arc::new(AtomicBool::new(false)),
-            on_audio: Arc::new(Mutex::new(None)),
+            on_transcript: Arc::new(Mutex::new(None)),
         }
     }
 
-    pub fn set_on_audio(&self, cb: AudioCallback) {
-        *self.on_audio.lock().unwrap() = Some(cb);
+    pub fn set_on_transcript(&self, cb: TranscriptCallback) {
+        *self.on_transcript.lock().unwrap() = Some(cb);
     }
 
     pub fn start(&self) -> anyhow::Result<()> {
@@ -35,9 +42,15 @@ impl VoicePipeline {
         let running = self.running.clone();
         let hotkey = self.hotkey.clone();
         let capture = self.capture.clone();
-        let on_audio = self.on_audio.clone();
+        let stt = self.stt.clone();
+        let on_transcript = self.on_transcript.clone();
+        let sample_rate = {
+            let cap = capture.lock().unwrap();
+            cap.sample_rate()
+        };
 
         std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
             let mut was_pressed = false;
 
             while running.load(Ordering::SeqCst) {
@@ -49,8 +62,13 @@ impl VoicePipeline {
                 } else if !pressed && was_pressed {
                     let audio = capture.lock().unwrap().stop();
                     if !audio.is_empty() {
-                        if let Some(ref cb) = *on_audio.lock().unwrap() {
-                            cb(audio);
+                        let result = rt.block_on(async {
+                            stt.lock().unwrap().transcribe(&audio, sample_rate).await
+                        });
+                        if let Ok(transcript) = result {
+                            if let Some(ref cb) = *on_transcript.lock().unwrap() {
+                                cb(transcript);
+                            }
                         }
                     }
                     was_pressed = false;

@@ -8,7 +8,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::voice::tts::{AudioChunk, AudioStream, TtsProvider};
 
-const EDGE_TTS_URL: &str = "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=";
+const EDGE_TTS_URL: &str = "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1";
 
 pub struct EdgeTtsProvider {
     voice: String,
@@ -22,6 +22,10 @@ impl EdgeTtsProvider {
 
     pub fn with_rate(voice: String, rate: String) -> Self {
         Self { voice, rate }
+    }
+
+    fn token(&self) -> String {
+        std::env::var("EDGE_TTS_TOKEN").unwrap_or_else(|_| String::new())
     }
 
     fn connection_id() -> String {
@@ -60,7 +64,7 @@ struct ConfigMessage {
 impl TtsProvider for EdgeTtsProvider {
     async fn synthesize(&self, text: &str) -> Result<AudioChunk> {
         let conn_id = Self::connection_id();
-        let url = format!("{}{}", EDGE_TTS_URL, conn_id);
+        let url = format!("{}?TrustedClientToken={}&ConnectionId={}", EDGE_TTS_URL, self.token(), conn_id);
         let request_id = Self::connection_id();
 
         let (mut ws_stream, _) = connect_async(&url).await?;

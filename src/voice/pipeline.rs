@@ -1,12 +1,14 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::voice::capture::AudioCapture;
 use crate::voice::push_to_talk::GlobalHotkey;
 use crate::voice::transcription::{SttProvider, Transcript};
 
 type TranscriptCallback = Box<dyn Fn(Transcript) + Send + 'static>;
+
+const INTERIM_INTERVAL: Duration = Duration::from_millis(500);
 
 pub struct VoicePipeline {
     hotkey: Arc<Mutex<Box<dyn GlobalHotkey>>>,
@@ -52,13 +54,33 @@ impl VoicePipeline {
         std::thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
             let mut was_pressed = false;
+            let mut last_interim = Instant::now();
 
             while running.load(Ordering::SeqCst) {
                 let pressed = hotkey.lock().unwrap().is_pressed();
 
                 if pressed && !was_pressed {
                     let _ = capture.lock().unwrap().start();
+                    last_interim = Instant::now();
                     was_pressed = true;
+                } else if pressed && was_pressed {
+                    if last_interim.elapsed() >= INTERIM_INTERVAL {
+                        let audio = capture.lock().unwrap().snapshot();
+                        if !audio.is_empty() {
+                            let result = rt.block_on(async {
+                                stt.lock().unwrap().transcribe(&audio, sample_rate).await
+                            });
+                            if let Ok(transcript) = result {
+                                if let Some(ref cb) = *on_transcript.lock().unwrap() {
+                                    cb(Transcript {
+                                        text: transcript.text,
+                                        is_final: false,
+                                    });
+                                }
+                            }
+                        }
+                        last_interim = Instant::now();
+                    }
                 } else if !pressed && was_pressed {
                     let audio = capture.lock().unwrap().stop();
                     if !audio.is_empty() {
@@ -67,7 +89,10 @@ impl VoicePipeline {
                         });
                         if let Ok(transcript) = result {
                             if let Some(ref cb) = *on_transcript.lock().unwrap() {
-                                cb(transcript);
+                                cb(Transcript {
+                                    text: transcript.text,
+                                    is_final: true,
+                                });
                             }
                         }
                     }

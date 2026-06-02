@@ -52,6 +52,10 @@ impl AudioCapture {
         std::mem::take(&mut self.buffer.lock().unwrap())
     }
 
+    pub fn snapshot(&self) -> Vec<f32> {
+        self.buffer.lock().unwrap().clone()
+    }
+
     pub fn is_capturing(&self) -> bool {
         self.capturing.load(Ordering::SeqCst)
     }

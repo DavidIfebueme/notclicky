@@ -55,3 +55,58 @@ fn parse_whitespace_in_coords() {
     assert_eq!(points[0].x, 100);
     assert_eq!(points[0].y, 200);
 }
+
+#[test]
+fn sentence_splitter_single_sentence() {
+    let mut splitter = notclicky::ai::sentence_splitter::SentenceSplitter::new();
+    let sentences = splitter.push("Hello world. ");
+    assert_eq!(sentences, vec!["Hello world."]);
+}
+
+#[test]
+fn sentence_splitter_multiple_sentences() {
+    let mut splitter = notclicky::ai::sentence_splitter::SentenceSplitter::new();
+    let mut all = Vec::new();
+    all.extend(splitter.push("Hello. "));
+    all.extend(splitter.push("World! "));
+    all.extend(splitter.push("How are you? "));
+    assert!(all.len() >= 3);
+}
+
+#[test]
+fn sentence_splitter_flush_remaining() {
+    let mut splitter = notclicky::ai::sentence_splitter::SentenceSplitter::new();
+    splitter.push("Hello world");
+    let remaining = splitter.flush();
+    assert_eq!(remaining, Some("Hello world".to_string()));
+}
+
+#[test]
+fn sentence_splitter_flush_empty() {
+    let mut splitter = notclicky::ai::sentence_splitter::SentenceSplitter::new();
+    assert!(splitter.flush().is_none());
+}
+
+#[test]
+fn prefire_divergence_identical() {
+    let div = notclicky::ai::prefire::compute_divergence("hello world", "hello world");
+    assert!(div < 0.01);
+}
+
+#[test]
+fn prefire_divergence_completely_different() {
+    let div = notclicky::ai::prefire::compute_divergence("hello world", "foo bar baz");
+    assert!(div > 0.5);
+}
+
+#[test]
+fn prefire_divergence_partial_match() {
+    let div = notclicky::ai::prefire::compute_divergence("what time is it", "what time is it now");
+    assert!(div < 0.15);
+}
+
+#[test]
+fn prefire_divergence_empty_interim() {
+    let div = notclicky::ai::prefire::compute_divergence("", "hello");
+    assert_eq!(div, 1.0);
+}

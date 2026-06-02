@@ -21,6 +21,10 @@ async-stream = "0.3"
 rand = "0.9"
 rodio = "0.20"
 image = { version = "0.25", features = ["jpeg"], default-features = false }
+axum = { version = "0.8", features = ["ws"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors"] }
+tokio-stream = "0.1"
 x11rb = { version = "0.13", features = ["xkb"] }
 ksni = "0.2"
 pipewire = "0.10"

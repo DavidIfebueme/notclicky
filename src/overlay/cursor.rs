@@ -1,14 +1,15 @@
 use anyhow::Result;
-use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
+    #[serde(default)]
     pub label: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rect {
     pub x: f64,
     pub y: f64,

@@ -9,17 +9,19 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
+use crate::ai::providers::LlmProvider;
 use crate::overlay::cursor::OverlayCommand;
 use crate::screen::capture::ScreenCapture;
 use crate::voice::tts::TtsProvider;
 
-const PORT: u16 = 32123;
+pub const PORT: u16 = 32123;
 
 #[derive(Clone)]
 pub struct AppState {
     pub overlay_tx: std::sync::mpsc::Sender<OverlayCommand>,
     pub screen: Arc<tokio::sync::Mutex<Box<dyn ScreenCapture>>>,
     pub tts: Arc<tokio::sync::Mutex<Box<dyn TtsProvider>>>,
+    pub llm: Arc<tokio::sync::Mutex<Box<dyn LlmProvider>>>,
     pub auth_token: String,
     pub event_tx: broadcast::Sender<Value>,
 }
@@ -46,6 +48,13 @@ pub async fn start_server(state: AppState) -> Result<()> {
         .route("/notify", post(notify))
         .route("/clear", post(clear))
         .route("/events", get(events))
+        .route("/mcp/tools", get(crate::bridge::mcp::list_tools))
+        .route("/mcp/call", post(crate::bridge::mcp::call_tool))
+        .route("/mcp/calls", post(crate::bridge::mcp::batch_call))
+        .route("/mcp", post(crate::bridge::mcp::jsonrpc_handler))
+        .route("/v1/chat/completions", post(inference_proxy_chat))
+        .route("/v1/messages", post(inference_proxy_messages))
+        .route("/v1/responses", post(inference_proxy_responses))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", PORT)).await?;
@@ -256,4 +265,109 @@ fn base64_encode(data: &[u8]) -> String {
         }
     }
     out
+}
+
+async fn inference_proxy_chat(State(state): State<AppState>, body: Json<Value>) -> Result<Json<Value>, StatusCode> {
+    let body = body.0;
+    let messages = body.get("messages")
+        .and_then(|m| m.as_array())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    let mut llm_messages = Vec::new();
+    for msg in messages {
+        let role = msg.get("role").and_then(|r| r.as_str()).unwrap_or("user").to_string();
+        let content = msg.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string();
+        llm_messages.push(crate::ai::providers::LlmMessage { role, content });
+    }
+
+    let model = body.get("model").and_then(|m| m.as_str()).map(String::from);
+    let max_tokens = body.get("max_tokens").and_then(|m| m.as_u64()).map(|t| t as u32);
+    let temperature = body.get("temperature").and_then(|t| t.as_f64()).map(|t| t as f32);
+
+    let req = crate::ai::providers::LlmRequest {
+        messages: llm_messages,
+        model,
+        max_tokens,
+        temperature,
+    };
+
+    let llm = state.llm.lock().await;
+    let resp = llm.complete(req).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(json!({
+        "id": format!("chatcmpl-{}", uuid_short()),
+        "object": "chat.completion",
+        "model": resp.model,
+        "choices": [{
+            "index": 0,
+            "message": {"role": "assistant", "content": resp.content},
+            "finish_reason": "stop"
+        }]
+    })))
+}
+
+async fn inference_proxy_messages(State(state): State<AppState>, body: Json<Value>) -> Result<Json<Value>, StatusCode> {
+    let body = body.0;
+    let messages = body.get("messages")
+        .and_then(|m| m.as_array())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    let mut llm_messages = Vec::new();
+    for msg in messages {
+        let role = msg.get("role").and_then(|r| r.as_str()).unwrap_or("user").to_string();
+        let content = msg.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string();
+        llm_messages.push(crate::ai::providers::LlmMessage { role, content });
+    }
+
+    let model = body.get("model").and_then(|m| m.as_str()).map(String::from);
+    let max_tokens = body.get("max_tokens").and_then(|m| m.as_u64()).map(|t| t as u32);
+
+    let req = crate::ai::providers::LlmRequest {
+        messages: llm_messages,
+        model,
+        max_tokens,
+        temperature: None,
+    };
+
+    let llm = state.llm.lock().await;
+    let resp = llm.complete(req).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(json!({
+        "id": format!("msg_{}", uuid_short()),
+        "type": "message",
+        "role": "assistant",
+        "model": resp.model,
+        "content": [{"type": "text", "text": resp.content}]
+    })))
+}
+
+async fn inference_proxy_responses(State(state): State<AppState>, body: Json<Value>) -> Result<Json<Value>, StatusCode> {
+    let body = body.0;
+    let input = body.get("input")
+        .and_then(|i| i.as_str())
+        .unwrap_or("");
+
+    let req = crate::ai::providers::LlmRequest {
+        messages: vec![
+            crate::ai::providers::LlmMessage { role: "user".to_string(), content: input.to_string() },
+        ],
+        model: None,
+        max_tokens: None,
+        temperature: None,
+    };
+
+    let llm = state.llm.lock().await;
+    let resp = llm.complete(req).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(json!({
+        "id": format!("resp_{}", uuid_short()),
+        "object": "response",
+        "output": [{"type": "message", "content": [{"type": "output_text", "text": resp.content}]}]
+    })))
+}
+
+fn uuid_short() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    format!("{:x}", ts)
 }

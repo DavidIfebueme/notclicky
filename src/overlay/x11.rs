@@ -8,6 +8,9 @@ use std::sync::mpsc;
 
 use crate::overlay::cursor::{OverlayCommand, Point, Rect};
 
+const ANIM_DURATION_MS: u64 = 400;
+const TICK_MS: u64 = 16;
+
 struct OverlayState {
     cursors: Vec<CursorState>,
     highlights: Vec<HighlightState>,
@@ -18,9 +21,15 @@ struct OverlayState {
 struct CursorState {
     x: f64,
     y: f64,
+    start_x: f64,
+    start_y: f64,
+    target_x: f64,
+    target_y: f64,
     label: Option<String>,
     accent: String,
     scale: f64,
+    anim_progress: f64,
+    animating: bool,
 }
 
 struct HighlightState {
@@ -155,27 +164,51 @@ impl X11Overlay {
                         state_clone2.borrow_mut().cursors.push(CursorState {
                             x: point.x,
                             y: point.y,
+                            start_x: point.x,
+                            start_y: point.y,
+                            target_x: point.x,
+                            target_y: point.y,
                             label: point.label,
                             accent,
                             scale: 1.0,
+                            anim_progress: 1.0,
+                            animating: false,
                         });
                         window_clone.set_visible(true);
                         window_clone.present();
                         drawing_area_clone.queue_draw();
                     }
-                    OverlayCommand::ShowCursors(points, accent, duration) => {
+                    OverlayCommand::ShowCursors(points, accent, _duration) => {
                         for p in points {
                             state_clone2.borrow_mut().cursors.push(CursorState {
                                 x: p.x,
                                 y: p.y,
+                                start_x: p.x,
+                                start_y: p.y,
+                                target_x: p.x,
+                                target_y: p.y,
                                 label: p.label,
                                 accent: accent.clone(),
                                 scale: 1.0,
+                                anim_progress: 1.0,
+                                animating: false,
                             });
                         }
                         window_clone.set_visible(true);
                         window_clone.present();
                         drawing_area_clone.queue_draw();
+                    }
+                    OverlayCommand::NavigateCursor(tx, ty, _accent) => {
+                        let mut s = state_clone2.borrow_mut();
+                        if let Some(cursor) = s.cursors.last_mut() {
+                            cursor.start_x = cursor.x;
+                            cursor.start_y = cursor.y;
+                            cursor.target_x = tx;
+                            cursor.target_y = ty;
+                            cursor.anim_progress = 0.0;
+                            cursor.animating = true;
+                        }
+                        drop(s);
                     }
                     OverlayCommand::ShowCaption(text, x, y, accent, _duration) => {
                         state_clone2.borrow_mut().captions.push(CaptionState {
@@ -214,6 +247,37 @@ impl X11Overlay {
             gtk4::glib::ControlFlow::Continue
         });
 
+        let state_anim = state.clone();
+        let drawing_area_anim = drawing_area.clone();
+        gtk4::glib::timeout_add_local(std::time::Duration::from_millis(TICK_MS), move || {
+            let mut s = state_anim.borrow_mut();
+            let mut any_animating = false;
+            for cursor in s.cursors.iter_mut() {
+                if cursor.animating {
+                    cursor.anim_progress += TICK_MS as f64 / ANIM_DURATION_MS as f64;
+                    if cursor.anim_progress >= 1.0 {
+                        cursor.anim_progress = 1.0;
+                        cursor.animating = false;
+                        cursor.x = cursor.target_x;
+                        cursor.y = cursor.target_y;
+                        cursor.scale = 1.0;
+                    } else {
+                        any_animating = true;
+                        let t = ease_out_cubic(cursor.anim_progress);
+                        let arc_height = -80.0;
+                        cursor.x = cursor.start_x + (cursor.target_x - cursor.start_x) * t;
+                        cursor.y = cursor.start_y + (cursor.target_y - cursor.start_y) * t + arc_height * (4.0 * t * (1.0 - t));
+                        cursor.scale = 1.0 + 0.3 * (1.0 - (2.0 * cursor.anim_progress - 1.0).abs());
+                    }
+                }
+            }
+            drop(s);
+            if any_animating {
+                drawing_area_anim.queue_draw();
+            }
+            gtk4::glib::ControlFlow::Continue
+        });
+
         Ok(Self { tx })
     }
 
@@ -221,6 +285,10 @@ impl X11Overlay {
         self.tx.send(cmd)?;
         Ok(())
     }
+}
+
+fn ease_out_cubic(t: f64) -> f64 {
+    1.0 - (1.0 - t).powi(3)
 }
 
 fn parse_accent(accent: &str) -> (f64, f64, f64) {

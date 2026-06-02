@@ -22,5 +22,6 @@ pub enum OverlayCommand {
     ShowCaption(String, f64, f64, String, u32),
     ShowHighlight(Rect, String, u32),
     ShowScribble(Vec<Point>, String, u32),
+    NavigateCursor(f64, f64, String),
     Clear,
 }

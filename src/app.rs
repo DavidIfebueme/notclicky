@@ -151,7 +151,7 @@ pub fn load() -> Result<AppConfig> {
 }
 
 pub struct Secrets {
-    values: HashMap<String, String>,
+    pub values: HashMap<String, String>,
 }
 
 const SECRET_KEYS: &[&str] = &[

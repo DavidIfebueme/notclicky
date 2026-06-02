@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 gtk4 = "0.9"
-libadwaita = "0.7"
+libadwaita = { version = "0.7", features = ["v1_2"] }
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 serde = { version = "1", features = ["derive"] }
@@ -16,6 +16,7 @@ async-trait = "0.1"
 dirs = "6"
 reqwest = { version = "0.12", features = ["stream", "json", "rustls-tls"], default-features = false }
 x11rb = "0.13"
+ksni = "0.2"
 pipewire = "0.10"
 whisper-rs = "0.16"
 

@@ -20,6 +20,7 @@ tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 async-stream = "0.3"
 rand = "0.9"
 rodio = "0.20"
+image = { version = "0.25", features = ["jpeg"], default-features = false }
 x11rb = { version = "0.13", features = ["xkb"] }
 ksni = "0.2"
 pipewire = "0.10"

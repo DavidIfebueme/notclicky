@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::ai::providers::LlmProvider;
 use crate::ai::streaming_pipeline::SentenceStream;
+use crate::screen::capture::ScreenCapture;
 use crate::voice::capture::AudioCapture;
 use crate::voice::push_to_talk::GlobalHotkey;
 use crate::voice::transcription::{SttProvider, Transcript};
@@ -16,6 +17,7 @@ pub struct VoiceAssistant {
     stt: Arc<Mutex<Box<dyn SttProvider>>>,
     llm: Arc<Mutex<Box<dyn LlmProvider>>>,
     tts: Arc<Mutex<Box<dyn TtsProvider>>>,
+    screen: Arc<Mutex<Box<dyn ScreenCapture>>>,
     system_prompt: String,
     running: Arc<AtomicBool>,
     on_transcript: Arc<Mutex<Option<TranscriptCallback>>>,
@@ -28,6 +30,7 @@ impl VoiceAssistant {
         stt: Box<dyn SttProvider>,
         llm: Box<dyn LlmProvider>,
         tts: Box<dyn TtsProvider>,
+        screen: Box<dyn ScreenCapture>,
         system_prompt: String,
     ) -> Self {
         Self {
@@ -36,6 +39,7 @@ impl VoiceAssistant {
             stt: Arc::new(Mutex::new(stt)),
             llm: Arc::new(Mutex::new(llm)),
             tts: Arc::new(Mutex::new(tts)),
+            screen: Arc::new(Mutex::new(screen)),
             system_prompt,
             running: Arc::new(AtomicBool::new(false)),
             on_transcript: Arc::new(Mutex::new(None)),
@@ -56,6 +60,7 @@ impl VoiceAssistant {
         let stt = self.stt.clone();
         let llm = self.llm.clone();
         let tts = self.tts.clone();
+        let screen = self.screen.clone();
         let system_prompt = self.system_prompt.clone();
         let on_transcript = self.on_transcript.clone();
         let sample_rate = capture.lock().unwrap().sample_rate();
@@ -72,6 +77,10 @@ impl VoiceAssistant {
                     was_pressed = true;
                 } else if !pressed && was_pressed {
                     let audio = capture.lock().unwrap().stop();
+                    let screenshot = rt.block_on(async {
+                        screen.lock().unwrap().capture_cursor_screen().await.ok()
+                    });
+
                     if !audio.is_empty() {
                         let transcript_result = rt.block_on(async {
                             stt.lock().unwrap().transcribe(&audio, sample_rate).await
@@ -87,7 +96,7 @@ impl VoiceAssistant {
 
                             if !transcript.text.trim().is_empty() {
                                 let _ = rt.block_on(process_response(
-                                    &llm, &tts, &system_prompt, &transcript.text,
+                                    &llm, &tts, &system_prompt, &transcript.text, screenshot.as_ref(),
                                 ));
                             }
                         }
@@ -113,7 +122,15 @@ async fn process_response(
     tts: &Arc<Mutex<Box<dyn TtsProvider>>>,
     system_prompt: &str,
     user_text: &str,
+    screenshot: Option<&crate::screen::capture::CaptureResult>,
 ) -> anyhow::Result<()> {
+    let user_content = if let Some(screenshot) = screenshot {
+        let b64 = base64_encode(&screenshot.image_data);
+        format!("{}\n\n[data:image/jpeg;base64,{}]", user_text, b64)
+    } else {
+        user_text.to_string()
+    };
+
     let req = crate::ai::providers::LlmRequest {
         messages: vec![
             crate::ai::providers::LlmMessage {
@@ -122,7 +139,7 @@ async fn process_response(
             },
             crate::ai::providers::LlmMessage {
                 role: "user".to_string(),
-                content: user_text.to_string(),
+                content: user_content,
             },
         ],
         model: None,
@@ -156,4 +173,29 @@ fn play_audio(data: &[u8]) -> anyhow::Result<()> {
     sink.append(source);
     sink.sleep_until_end();
     Ok(())
+}
+
+fn base64_encode(data: &[u8]) -> String {
+    use std::fmt::Write;
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = chunk.get(1).copied().unwrap_or(0) as u32;
+        let b2 = chunk.get(2).copied().unwrap_or(0) as u32;
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+        out.write_char(TABLE[((triple >> 18) & 0x3F) as usize] as char).unwrap();
+        out.write_char(TABLE[((triple >> 12) & 0x3F) as usize] as char).unwrap();
+        if chunk.len() > 1 {
+            out.write_char(TABLE[((triple >> 6) & 0x3F) as usize] as char).unwrap();
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.write_char(TABLE[(triple & 0x3F) as usize] as char).unwrap();
+        } else {
+            out.push('=');
+        }
+    }
+    out
 }

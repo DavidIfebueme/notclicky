@@ -5,4 +5,5 @@ pub mod resample;
 pub mod transcription;
 pub mod transcription_whisper;
 pub mod tts;
+pub mod tts_providers;
 pub mod wake_word;

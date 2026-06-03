@@ -67,8 +67,7 @@ impl Tray for TrayIcon {
 }
 
 pub fn setup_with_app(app: &adw::Application, nc_app: &NotClickyApp) {
-    let panel_window = crate::ui::panel::build_panel(app, nc_app);
-    let mini_window = crate::ui::panel::build_mini_panel(app);
+    let (panel_window, mini_window) = crate::ui::panel::build_panel(app, nc_app);
     let settings_window = crate::ui::settings::build_settings_window(app);
 
     let (tx, rx) = mpsc::channel::<TrayEvent>();

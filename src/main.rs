@@ -124,7 +124,7 @@ fn create_llm(config: &app::AppConfig, secrets: &app::Secrets) -> Box<dyn ai::pr
         _ => {
             let key = secrets.get("ZAI_API_KEY").unwrap_or("").to_string();
             let base_url = if config.llm.base_url.is_empty() {
-                "https://api.zai.chat/v1".to_string()
+                "https://api.zai.chat".to_string()
             } else {
                 config.llm.base_url.clone()
             };

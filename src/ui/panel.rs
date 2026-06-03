@@ -28,7 +28,7 @@ struct SavedConversation {
     history: ConversationHistory,
 }
 
-pub fn build_panel(app: &adw::Application, nc_app: &NotClickyApp) -> adw::ApplicationWindow {
+pub fn build_panel(app: &adw::Application, nc_app: &NotClickyApp) -> (adw::ApplicationWindow, adw::ApplicationWindow) {
     let state = Rc::new(RefCell::new(PanelState {
         history: ConversationHistory::new(),
         conversations: vec![SavedConversation {
@@ -48,10 +48,40 @@ pub fn build_panel(app: &adw::Application, nc_app: &NotClickyApp) -> adw::Applic
         .default_height(640)
         .build();
 
+    let mini_window = adw::ApplicationWindow::builder()
+        .application(app)
+        .title("NotClicky Mini")
+        .default_width(320)
+        .default_height(400)
+        .build();
+
+    let mini_content = Box::new(Orientation::Vertical, 0);
+    let mini_header = adw::HeaderBar::builder()
+        .title_widget(&adw::WindowTitle::new("NotClicky", ""))
+        .build();
+    mini_content.append(&mini_header);
+    let mini_messages = ListBox::new();
+    mini_messages.add_css_class("rich-list");
+    mini_messages.set_selection_mode(gtk4::SelectionMode::None);
+    let mini_scrolled = ScrolledWindow::new();
+    mini_scrolled.set_vexpand(true);
+    mini_scrolled.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
+    mini_scrolled.set_child(Some(&mini_messages));
+    mini_content.append(&mini_scrolled);
+    let mini_entry = Entry::new();
+    mini_entry.set_hexpand(true);
+    mini_entry.set_placeholder_text(Some("Ask..."));
+    mini_entry.set_margin_start(6);
+    mini_entry.set_margin_end(6);
+    mini_entry.set_margin_top(4);
+    mini_entry.set_margin_bottom(4);
+    mini_content.append(&mini_entry);
+    mini_window.set_content(Some(&mini_content));
+
     let main_layout = Box::new(Orientation::Horizontal, 0);
 
     let sidebar = build_conversation_sidebar(&state);
-    let content_area = build_content_area(&state, nc_app);
+    let content_area = build_content_area(&state, nc_app, &mini_window);
 
     main_layout.append(&sidebar);
     main_layout.append(&gtk4::Separator::new(Orientation::Vertical));
@@ -59,7 +89,8 @@ pub fn build_panel(app: &adw::Application, nc_app: &NotClickyApp) -> adw::Applic
 
     window.set_content(Some(&main_layout));
     window.present();
-    window
+
+    (window, mini_window)
 }
 
 fn build_conversation_sidebar(state: &Rc<RefCell<PanelState>>) -> gtk4::Widget {
@@ -96,7 +127,7 @@ fn build_conversation_sidebar(state: &Rc<RefCell<PanelState>>) -> gtk4::Widget {
     sidebar.upcast()
 }
 
-fn build_content_area(state: &Rc<RefCell<PanelState>>, nc_app: &NotClickyApp) -> gtk4::Widget {
+fn build_content_area(state: &Rc<RefCell<PanelState>>, nc_app: &NotClickyApp, mini_window: &adw::ApplicationWindow) -> gtk4::Widget {
     let content = Box::new(Orientation::Vertical, 0);
 
     let header = adw::HeaderBar::builder()
@@ -162,8 +193,14 @@ fn build_content_area(state: &Rc<RefCell<PanelState>>, nc_app: &NotClickyApp) ->
     });
 
     let window_ref: Rc<RefCell<Option<gtk4::Window>>> = Rc::new(RefCell::new(None));
+    let mini_win = mini_window.clone();
     memory_button.connect_clicked(move |_| {
         show_memory_drawer(&window_ref);
+    });
+
+    let mini_win = mini_window.clone();
+    mini_button.connect_clicked(move |_| {
+        mini_win.present();
     });
 
     content.upcast()
@@ -176,7 +213,11 @@ fn setup_autocomplete(entry: &Entry) {
         "help me ", "build ", "fix ", "explain ",
     ];
 
+    let updating = Rc::new(RefCell::new(false));
     entry.connect_changed(move |entry| {
+        if *updating.borrow() {
+            return;
+        }
         let text = entry.text().to_string();
         if text.is_empty() {
             return;
@@ -185,11 +226,12 @@ fn setup_autocomplete(entry: &Entry) {
         let lower = text.to_lowercase();
         for comp in &completions {
             if comp.starts_with(&lower) && comp.len() > lower.len() {
-                let suffix = &comp[lower.len()..];
+                *updating.borrow_mut() = true;
                 let pos = entry.position();
                 entry.set_text(comp);
                 entry.set_position(pos as i32);
                 entry.select_region(pos as i32, comp.len() as i32);
+                *updating.borrow_mut() = false;
                 break;
             }
         }
@@ -403,47 +445,6 @@ fn show_memory_drawer(window_ref: &Rc<RefCell<Option<gtk4::Window>>>) {
     window.present();
 
     *store = Some(window);
-}
-
-pub fn build_mini_panel(app: &adw::Application) -> adw::ApplicationWindow {
-    let window = adw::ApplicationWindow::builder()
-        .application(app)
-        .title("NotClicky Mini")
-        .default_width(320)
-        .default_height(400)
-        .build();
-
-    let content = Box::new(Orientation::Vertical, 0);
-
-    let header = adw::HeaderBar::builder()
-        .title_widget(&adw::WindowTitle::new("NotClicky", ""))
-        .build();
-
-    content.append(&header);
-
-    let messages_list = ListBox::new();
-    messages_list.add_css_class("rich-list");
-    messages_list.set_selection_mode(gtk4::SelectionMode::None);
-
-    let scrolled = ScrolledWindow::new();
-    scrolled.set_vexpand(true);
-    scrolled.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
-    scrolled.set_child(Some(&messages_list));
-
-    content.append(&scrolled);
-
-    let entry = Entry::new();
-    entry.set_hexpand(true);
-    entry.set_placeholder_text(Some("Ask..."));
-    entry.set_margin_start(6);
-    entry.set_margin_end(6);
-    entry.set_margin_top(4);
-    entry.set_margin_bottom(4);
-
-    content.append(&entry);
-
-    window.set_content(Some(&content));
-    window
 }
 
 fn truncate(s: &str, max: usize) -> String {

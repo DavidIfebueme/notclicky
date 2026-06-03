@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use std::path::PathBuf;
+use std::sync::Arc;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 use super::transcription::{SttProvider, Transcript};
@@ -14,14 +15,20 @@ impl WhisperSttProvider {
         Self { model_path }
     }
 
-    pub fn transcribe_sync(&self, audio: &[f32]) -> Result<String> {
+    pub fn create_context(&self) -> Result<Arc<WhisperContext>> {
         let ctx = WhisperContext::new_with_params(&self.model_path, WhisperContextParameters::default())?;
+        Ok(Arc::new(ctx))
+    }
+
+    pub fn transcribe_sync_with_ctx(&self, ctx: &Arc<WhisperContext>, audio: &[f32]) -> Result<String> {
         let mut state = ctx.create_state()?;
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
         params.set_language(Some("en"));
         params.set_print_progress(false);
         params.set_print_timestamps(false);
         params.set_print_special(false);
+        params.set_print_realtime(false);
+        params.set_no_timestamps(true);
         state.full(params, audio)?;
 
         let text: String = state
@@ -33,6 +40,11 @@ impl WhisperSttProvider {
             .to_string();
 
         Ok(text)
+    }
+
+    pub fn transcribe_sync(&self, audio: &[f32]) -> Result<String> {
+        let ctx = self.create_context()?;
+        self.transcribe_sync_with_ctx(&ctx, audio)
     }
 }
 

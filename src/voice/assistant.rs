@@ -122,7 +122,7 @@ impl VoiceAssistant {
                 if !was_pressed && has_wake_word {
                     wake_word_check_counter += 1;
                     let in_cooldown = last_wake_word_time.map_or(false, |t| t.elapsed() < std::time::Duration::from_secs(3));
-                    if wake_word_check_counter % 100 == 0 && !in_cooldown {
+                    if wake_word_check_counter % 150 == 0 && !in_cooldown {
                         if let Some(ref ww) = wake_word {
                             let snapshot = capture.lock().unwrap().snapshot();
                             if !snapshot.is_empty() && ww.check(&snapshot) {

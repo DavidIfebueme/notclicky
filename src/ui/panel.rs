@@ -1,7 +1,7 @@
 use gtk4::prelude::*;
 use gtk4::{
     Box, Button, Entry, Label, ListBox, ListBoxRow, Orientation, ScrolledWindow, Separator,
-    Stack, StackSidebar, StackSwitcher, TextView, Window,
+    Stack, StackSwitcher, TextView, Window,
 };
 use libadwaita as adw;
 use adw::prelude::*;
@@ -11,6 +11,7 @@ use std::rc::Rc;
 
 use crate::memory::conversation::ConversationHistory;
 use crate::memory::wiki::WikiManager;
+use crate::notclicky_app::NotClickyApp;
 
 pub struct PanelState {
     history: ConversationHistory,
@@ -27,7 +28,7 @@ struct SavedConversation {
     history: ConversationHistory,
 }
 
-pub fn build_panel(app: &adw::Application) -> adw::ApplicationWindow {
+pub fn build_panel(app: &adw::Application, nc_app: &NotClickyApp) -> adw::ApplicationWindow {
     let state = Rc::new(RefCell::new(PanelState {
         history: ConversationHistory::new(),
         conversations: vec![SavedConversation {
@@ -50,7 +51,7 @@ pub fn build_panel(app: &adw::Application) -> adw::ApplicationWindow {
     let main_layout = Box::new(Orientation::Horizontal, 0);
 
     let sidebar = build_conversation_sidebar(&state);
-    let content_area = build_content_area(&state);
+    let content_area = build_content_area(&state, nc_app);
 
     main_layout.append(&sidebar);
     main_layout.append(&gtk4::Separator::new(Orientation::Vertical));
@@ -94,7 +95,7 @@ fn build_conversation_sidebar(state: &Rc<RefCell<PanelState>>) -> gtk4::Widget {
     sidebar.upcast()
 }
 
-fn build_content_area(state: &Rc<RefCell<PanelState>>) -> gtk4::Widget {
+fn build_content_area(state: &Rc<RefCell<PanelState>>, nc_app: &NotClickyApp) -> gtk4::Widget {
     let content = Box::new(Orientation::Vertical, 0);
 
     let header = adw::HeaderBar::builder()
@@ -144,16 +145,19 @@ fn build_content_area(state: &Rc<RefCell<PanelState>>) -> gtk4::Widget {
     input_box.append(&send_button);
     content.append(&input_box);
 
+    let llm = nc_app.llm.clone();
     let state_ref = state.clone();
     let messages_ref = messages_list.clone();
     entry.connect_activate(move |entry| {
-        handle_send(entry, &messages_ref, &state_ref);
+        handle_send(entry, &messages_ref, &state_ref, &llm);
     });
 
+    let llm = nc_app.llm.clone();
     let state_ref = state.clone();
     let messages_ref = messages_list.clone();
+    let entry_clone = entry.clone();
     send_button.connect_clicked(move |_| {
-        handle_send(&entry, &messages_ref, &state_ref);
+        handle_send(&entry_clone, &messages_ref, &state_ref, &llm);
     });
 
     let window_ref: Rc<RefCell<Option<gtk4::Window>>> = Rc::new(RefCell::new(None));
@@ -191,7 +195,12 @@ fn setup_autocomplete(entry: &Entry) {
     });
 }
 
-fn handle_send(entry: &Entry, messages_list: &ListBox, state: &Rc<RefCell<PanelState>>) {
+fn handle_send(
+    entry: &Entry,
+    messages_list: &ListBox,
+    state: &Rc<RefCell<PanelState>>,
+    llm: &std::sync::Arc<tokio::sync::Mutex<std::boxed::Box<dyn crate::ai::providers::LlmProvider>>>,
+) {
     let text = entry.text().to_string();
     if text.trim().is_empty() {
         return;
@@ -200,11 +209,65 @@ fn handle_send(entry: &Entry, messages_list: &ListBox, state: &Rc<RefCell<PanelS
 
     add_message(messages_list, &text, "user");
 
-    let placeholder = "I'm NotClicky, your AI companion. Use voice mode (Ctrl+Alt) or type here to chat.".to_string();
-    add_message(messages_list, &placeholder, "assistant");
+    let (response_tx, response_rx) = std::sync::mpsc::channel::<String>();
+    let messages_for_response = messages_list.clone();
+
+    gtk4::glib::idle_add_local(move || {
+        match response_rx.try_recv() {
+            Ok(response) => {
+                add_message(&messages_for_response, &response, "assistant");
+            }
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                return gtk4::glib::ControlFlow::Break;
+            }
+            Err(_) => {}
+        }
+        gtk4::glib::ControlFlow::Continue
+    });
+
+    let llm_clone = llm.clone();
+    let user_text = text.clone();
+
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().expect("llm runtime");
+        let response = rt.block_on(async {
+            let req = crate::ai::providers::LlmRequest {
+                messages: vec![
+                    crate::ai::providers::LlmMessage {
+                        role: "system".to_string(),
+                        content: "You are NotClicky, a helpful Linux desktop companion. Be concise and direct.".to_string(),
+                    },
+                    crate::ai::providers::LlmMessage {
+                        role: "user".to_string(),
+                        content: user_text,
+                    },
+                ],
+                model: None,
+                max_tokens: None,
+                temperature: None,
+            };
+
+            let provider = llm_clone.lock().await;
+            match provider.stream(req).await {
+                Ok(mut stream) => {
+                    let mut response = String::new();
+                    loop {
+                        match futures::StreamExt::next(&mut stream).await {
+                            Some(Ok(token)) => response.push_str(&token),
+                            Some(Err(_)) => break,
+                            None => break,
+                        }
+                    }
+                    if response.is_empty() { "No response.".to_string() } else { response }
+                }
+                Err(e) => format!("Error: {}", e),
+            }
+        });
+        let _ = response_tx.send(response);
+    });
 
     let mut state = state.borrow_mut();
-    state.history.add(text, placeholder);
+    state.history.add(text, String::new());
 }
 
 fn add_message(list: &ListBox, text: &str, role: &str) {

@@ -24,5 +24,7 @@ pub enum OverlayCommand {
     ShowHighlight(Rect, String, u32),
     ShowScribble(Vec<Point>, String, u32),
     NavigateCursor(f64, f64, String),
+    ShowWaveform(f64),
+    HideWaveform,
     Clear,
 }

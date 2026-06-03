@@ -38,6 +38,8 @@ impl WaylandOverlay {
             OverlayCommand::NavigateCursor(x, y, _) => {
                 self.notify("NotClicky", &format!("Navigating to ({}, {})", x, y));
             }
+            OverlayCommand::ShowWaveform(_rms) => {}
+            OverlayCommand::HideWaveform => {}
             OverlayCommand::Clear => {}
         }
         Ok(())

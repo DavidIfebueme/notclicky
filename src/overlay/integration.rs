@@ -8,3 +8,11 @@ pub fn process_stream_token(token: &str, overlay_tx: &std::sync::mpsc::Sender<Ov
         let _ = overlay_tx.send(cmd);
     }
 }
+
+pub fn show_waveform(rms: f64, overlay_tx: &std::sync::mpsc::Sender<OverlayCommand>) {
+    let _ = overlay_tx.send(OverlayCommand::ShowWaveform(rms as f64));
+}
+
+pub fn hide_waveform(overlay_tx: &std::sync::mpsc::Sender<OverlayCommand>) {
+    let _ = overlay_tx.send(OverlayCommand::HideWaveform);
+}

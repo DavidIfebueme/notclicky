@@ -16,6 +16,12 @@ struct OverlayState {
     highlights: Vec<HighlightState>,
     captions: Vec<CaptionState>,
     scribbles: Vec<ScribbleState>,
+    waveform: Option<WaveformState>,
+}
+
+struct WaveformState {
+    rms: f64,
+    bars: Vec<f64>,
 }
 
 struct CursorState {
@@ -54,7 +60,7 @@ pub struct X11Overlay {
 }
 
 impl X11Overlay {
-    pub fn new(app: &gtk4::Application) -> Result<Self> {
+    pub fn new(app: &impl gtk4::prelude::IsA<gtk4::Application>) -> Result<Self> {
         let (tx, rx) = mpsc::channel::<OverlayCommand>();
 
         let window = ApplicationWindow::builder()
@@ -89,6 +95,7 @@ impl X11Overlay {
             highlights: Vec::new(),
             captions: Vec::new(),
             scribbles: Vec::new(),
+            waveform: None,
         }));
 
         let drawing_area = DrawingArea::new();
@@ -148,6 +155,31 @@ impl X11Overlay {
                 cr.set_font_size(14.0);
                 let _ = cr.move_to(caption.x, caption.y);
                 let _ = cr.show_text(&caption.text);
+            }
+
+            if let Some(ref wf) = s.waveform {
+                let bar_count = wf.bars.len();
+                if bar_count > 0 {
+                    let (r, g, b) = parse_accent("blue");
+                    let bar_width = 4.0;
+                    let bar_gap = 2.0;
+                    let max_height = 40.0;
+                    let total_width = bar_count as f64 * (bar_width + bar_gap);
+                    let start_x = 20.0;
+                    let base_y = 60.0;
+
+                    cr.set_source_rgba(0.0, 0.0, 0.0, 0.4);
+                    cr.rectangle(start_x - 4.0, base_y - max_height - 4.0, total_width + 8.0, max_height * 2.0 + 8.0);
+                    let _ = cr.fill();
+
+                    for (i, &bar) in wf.bars.iter().enumerate() {
+                        let x = start_x + i as f64 * (bar_width + bar_gap);
+                        let h = (bar * max_height).min(max_height);
+                        cr.set_source_rgba(r, g, b, 0.8);
+                        cr.rectangle(x, base_y - h, bar_width, h * 2.0);
+                        let _ = cr.fill();
+                    }
+                }
             }
         });
 
@@ -234,11 +266,35 @@ impl X11Overlay {
                         window_clone.present();
                         drawing_area_clone.queue_draw();
                     }
+                    OverlayCommand::ShowWaveform(rms) => {
+                        let mut s = state_clone2.borrow_mut();
+                        let bars = if let Some(ref mut wf) = s.waveform {
+                            wf.bars.push(rms);
+                            if wf.bars.len() > 32 {
+                                wf.bars.remove(0);
+                            }
+                            wf.rms = rms;
+                            wf.bars.clone()
+                        } else {
+                            let bars = vec![rms; 1];
+                            s.waveform = Some(WaveformState { rms, bars: bars.clone() });
+                            bars
+                        };
+                        drop(s);
+                        window_clone.set_visible(true);
+                        window_clone.present();
+                        drawing_area_clone.queue_draw();
+                    }
+                    OverlayCommand::HideWaveform => {
+                        state_clone2.borrow_mut().waveform = None;
+                        drawing_area_clone.queue_draw();
+                    }
                     OverlayCommand::Clear => {
                         state_clone2.borrow_mut().cursors.clear();
                         state_clone2.borrow_mut().highlights.clear();
                         state_clone2.borrow_mut().captions.clear();
                         state_clone2.borrow_mut().scribbles.clear();
+                        state_clone2.borrow_mut().waveform = None;
                         window_clone.set_visible(false);
                         drawing_area_clone.queue_draw();
                     }
@@ -284,6 +340,10 @@ impl X11Overlay {
     pub fn send(&self, cmd: OverlayCommand) -> Result<()> {
         self.tx.send(cmd)?;
         Ok(())
+    }
+
+    pub fn sender(&self) -> &mpsc::Sender<OverlayCommand> {
+        &self.tx
     }
 }
 

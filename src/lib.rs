@@ -9,3 +9,4 @@ pub mod skills;
 pub mod memory;
 pub mod ui;
 pub mod platform;
+pub mod notclicky_app;

@@ -3,6 +3,8 @@ use libadwaita as adw;
 use ksni::Tray;
 use std::sync::mpsc;
 
+use crate::notclicky_app::NotClickyApp;
+
 enum TrayEvent {
     Chat,
     MiniChat,
@@ -64,8 +66,8 @@ impl Tray for TrayIcon {
     }
 }
 
-pub fn setup(app: &adw::Application) {
-    let panel_window = crate::ui::panel::build_panel(app);
+pub fn setup_with_app(app: &adw::Application, nc_app: &NotClickyApp) {
+    let panel_window = crate::ui::panel::build_panel(app, nc_app);
     let mini_window = crate::ui::panel::build_mini_panel(app);
     let settings_window = crate::ui::settings::build_settings_window(app);
 
@@ -94,4 +96,32 @@ pub fn setup(app: &adw::Application) {
             }
         }
     });
+}
+
+pub fn setup(app: &adw::Application) {
+    let config = crate::app::load().unwrap_or_default();
+    let secrets = crate::app::Secrets::load().unwrap_or_else(|_| {
+        crate::app::Secrets { values: std::collections::HashMap::new() }
+    });
+    let (overlay_tx, _) = mpsc::channel();
+    let llm = Box::new(crate::ai::providers::openai_compat::OpenAiCompatProvider::new(
+        String::new(), String::new(), String::new(),
+    ));
+    let tts = Box::new(crate::voice::tts_providers::edge::EdgeTtsProvider::new(String::new()));
+    struct NoopCapture;
+    #[async_trait::async_trait]
+    impl crate::screen::capture::ScreenCapture for NoopCapture {
+        async fn capture_all(&self) -> anyhow::Result<Vec<crate::screen::capture::CaptureResult>> {
+            anyhow::bail!("No screen capture")
+        }
+        async fn capture_cursor_screen(&self) -> anyhow::Result<crate::screen::capture::CaptureResult> {
+            anyhow::bail!("No screen capture")
+        }
+        async fn capture_focused_window(&self) -> anyhow::Result<crate::screen::capture::CaptureResult> {
+            anyhow::bail!("No screen capture")
+        }
+    }
+    let screen: Box<dyn crate::screen::capture::ScreenCapture> = Box::new(NoopCapture);
+    let nc_app = NotClickyApp::new(overlay_tx, llm, tts, screen, config, secrets);
+    setup_with_app(app, &nc_app);
 }

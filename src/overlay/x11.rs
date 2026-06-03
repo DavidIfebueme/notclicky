@@ -277,10 +277,14 @@ impl X11Overlay {
                         } else {
                             s.waveform = Some(WaveformState { rms, bars: vec![rms; 1] });
                         }
+                        let has_other_content = !s.cursors.is_empty()
+                            || !s.highlights.is_empty()
+                            || !s.captions.is_empty()
+                            || !s.scribbles.is_empty();
                         drop(s);
-                        window_clone.set_visible(true);
-                        window_clone.present();
-                        drawing_area_clone.queue_draw();
+                        if has_other_content || window_clone.is_visible() {
+                            drawing_area_clone.queue_draw();
+                        }
                     }
                     OverlayCommand::HideWaveform => {
                         state_clone2.borrow_mut().waveform = None;

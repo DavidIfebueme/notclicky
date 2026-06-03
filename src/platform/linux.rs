@@ -10,10 +10,16 @@ pub enum Backend {
 
 impl Backend {
     pub fn detect() -> Self {
-        match std::env::var("XDG_SESSION_TYPE").as_deref() {
-            Ok("wayland") => Backend::Wayland,
-            _ => Backend::X11,
+        if std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland") {
+            return Backend::Wayland;
         }
+        if std::env::var("WAYLAND_DISPLAY").is_ok() {
+            return Backend::Wayland;
+        }
+        if std::env::var("DISPLAY").is_err() {
+            return Backend::Wayland;
+        }
+        Backend::X11
     }
 }
 

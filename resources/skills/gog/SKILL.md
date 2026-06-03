@@ -1,19 +1,19 @@
 ---
 name: gog
-description: Use OpenClicky's local gog CLI as the primary Google Workspace route for Gmail read/search, optional Gmail send only when already connected and explicitly approved, Calendar, Drive, Docs, Sheets, Chat, Contacts, auth status, and account inspection. Prefer gog over browser automation for normal Google Workspace work.
+description: Use NotClicky's local gog CLI as the primary Google Workspace route for Gmail read/search, optional Gmail send only when already connected and explicitly approved, Calendar, Drive, Docs, Sheets, Chat, Contacts, auth status, and account inspection. Prefer gog over browser automation for normal Google Workspace work.
 version: 1.0.0
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.
 
 # gog
 
-Use `gog` as OpenClicky's primary local Google Workspace CLI for Gmail, Calendar, Drive, Docs, Sheets/spreadsheets, Google Workspace automations, Chat, Contacts, Tasks, People, Forms, Slides, Apps Script, Groups, Admin, and auth/account inspection.
+Use `gog` as NotClicky's primary local Google Workspace CLI for Gmail, Calendar, Drive, Docs, Sheets/spreadsheets, Google Workspace automations, Chat, Contacts, Tasks, People, Forms, Slides, Apps Script, Groups, Admin, and auth/account inspection.
 
 Prefer `gog` over browser automation for normal Google Workspace requests. Do not open or automate Gmail, Calendar, Drive, Docs, or Sheets in the browser unless `gog` cannot cover the requested action, the user explicitly asks for visible browser UI, or the user is already signed into a visible Google web app and the local connector is unavailable.
 
@@ -38,9 +38,9 @@ gog --json auth status
 gog --json auth list --check
 ```
 
-If the file-keyring backend asks for a passphrase, stop and report that gogcli needs its local keyring passphrase available to OpenClicky as `GOG_KEYRING_PASSWORD`, usually in `~/.config/openclicky/secrets.env`, or the user should migrate gogcli to the macOS Keychain backend. Do not spin or keep retrying.
+If the file-keyring backend asks for a passphrase, stop and report that gogcli needs its local keyring passphrase available to NotClicky as `GOG_KEYRING_PASSWORD`, usually in `~/.config/notclicky/secrets.env`, or the user should migrate gogcli to the macOS Keychain backend. Do not spin or keep retrying.
 
-If no usable account is authenticated, stop the `gog` route. Do not run `gog auth add`, `gog auth credentials`, or OAuth setup from an agent task unless the user explicitly asks for setup help. Google sign-in/setup belongs in OpenClicky Settings -> Google.
+If no usable account is authenticated, stop the `gog` route. Do not run `gog auth add`, `gog auth credentials`, or OAuth setup from an agent task unless the user explicitly asks for setup help. Google sign-in/setup belongs in NotClicky Settings -> Google.
 
 Do not claim OAuth client credentials are missing until you have checked both:
 
@@ -49,7 +49,7 @@ gog auth status --json
 gog auth credentials list --json
 ```
 
-If Google OAuth says the app is "Clicky", that comes from the local gogcli OAuth client stored at `~/Library/Application Support/gogcli/credentials.json`. OpenClicky is using the same local gogcli store, not a separate hosted login. The fix is to replace gogcli's OAuth client with an OpenClicky-owned Desktop OAuth client, then re-auth when the user explicitly wants setup.
+If Google OAuth says the app is "Clicky", that comes from the local gogcli OAuth client stored at `~/Library/Application Support/gogcli/credentials.json`. NotClicky is using the same local gogcli store, not a separate hosted login. The fix is to replace gogcli's OAuth client with an NotClicky-owned Desktop OAuth client, then re-auth when the user explicitly wants setup.
 
 `gog auth status` may not report credentials correctly in every local state; `credentials list` is the more direct check.
 
@@ -97,7 +97,7 @@ Default to read-only behavior. If the user asks to send email:
 2. Show account, recipient, subject, body summary, and attachments.
 3. Require explicit approval of that exact draft.
 4. Only then send if the account already has Gmail send permission.
-5. If send permission is missing, stop and say OpenClicky's Google connection needs Gmail send permission in Settings. Do not run OAuth from the agent.
+5. If send permission is missing, stop and say NotClicky's Google connection needs Gmail send permission in Settings. Do not run OAuth from the agent.
 
 Keep `GOG_GMAIL_NO_SEND=1` as the default guard where it is set. Bypass it only for one exact approved send command:
 

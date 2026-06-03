@@ -6,7 +6,7 @@ author: Hermes Agent
 license: MIT
 dependencies: []
 metadata:
-  hermes:
+  notclicky:
     tags: [Excalidraw, Diagrams, Flowcharts, Architecture, Visualization, JSON]
     related_skills: []
 

@@ -1,11 +1,11 @@
 ---
 name: cua-driver
-description: Drive native macOS apps and browser UI through OpenClicky's local computer-use MCP server, backed by Cua. Snapshot AX state, act by element_index, keep work backgrounded, prefer the user's default browser, and verify via re-snapshot. Use when the user asks you to operate, drive, automate, or perform a GUI task in a real macOS application on the host.
+description: Drive native macOS apps and browser UI through NotClicky's local computer-use MCP server, backed by Cua. Snapshot AX state, act by element_index, keep work backgrounded, prefer the user's default browser, and verify via re-snapshot. Use when the user asks you to operate, drive, automate, or perform a GUI task in a real macOS application on the host.
 ---
 
 # cua-driver
 
-Orchestrates macOS app automation through Cua. In OpenClicky's managed
+Orchestrates macOS app automation through Cua. In NotClicky's managed
 runtime, this skill is the instruction surface, but the callable tool
 server is named `computer-use`. Call the local MCP tools by name
 (`launch_app`, `get_window_state`, `click`, `set_value`, etc.) instead
@@ -16,12 +16,12 @@ the loop in this skill rather than calling tools ad-hoc. The
 snapshot-before-action invariant is not optional and silently breaks if
 you skip it.
 
-## OpenClicky managed runtime rules
+## NotClicky managed runtime rules
 
-OpenClicky ships Cua as a local `computer-use` MCP server backed by
+NotClicky ships Cua as a local `computer-use` MCP server backed by
 `ClickyComputerUseRuntime`. That helper is spawned by Codex inside
 Clicky.app, so macOS attributes Accessibility and Screen Recording use
-to OpenClicky itself. In this product runtime:
+to NotClicky itself. In this product runtime:
 
 - Use the `computer-use` MCP tools directly. Do not run the
   `cua-driver` CLI, `open`, AppleScript, `cliclick`, browser CLIs, or
@@ -30,9 +30,9 @@ to OpenClicky itself. In this product runtime:
   Composio integration when one is exposed and suitable. Do not silently
   use Computer Use as a substitute for a missing/expired connector on
   private account data, and do not offer to connect that integration
-  yourself. Tell the user to open OpenClicky Settings -> Integrations and
+  yourself. Tell the user to open NotClicky Settings -> Integrations and
   connect/reconnect the named app, offer voice/in-app guidance through
-  setup, and do not use Computer Use to operate OpenClicky's own
+  setup, and do not use Computer Use to operate NotClicky's own
   Settings/Integrations setup flow. Use visible UI only for the original
   third-party app task when the user asked for it, approved it, or the app
   has no shipped connector route.
@@ -59,7 +59,7 @@ to OpenClicky itself. In this product runtime:
   element_index})`, `right_click({pid, window_id, element_index})`,
   `set_value`, `type_text`, `press_key`, `hotkey`, `scroll`, `page`,
   and `get_window_state`.
-- OpenClicky's default runtime does not expose `move_cursor`, `drag`, or
+- NotClicky's default runtime does not expose `move_cursor`, `drag`, or
   `double_click` (not exposed in this build); it also blocks coordinate-only `click` / `right_click`, recording,
   replay, or zoom. If a target has no AX or page path, stop and say that
   completing it would require moving the user's real pointer or using
@@ -71,7 +71,7 @@ to OpenClicky itself. In this product runtime:
 ## The no-foreground contract — read this first
 
 **The user's frontmost app MUST NOT change.** This is the whole
-reason OpenClicky ships Computer Use. Users pay for the right to keep typing in
+reason NotClicky ships Computer Use. Users pay for the right to keep typing in
 their editor while an agent drives another app in the background.
 Violate this rule and every other nice property the driver gives
 you (no cursor warp, no Space switch, no window raise) stops
@@ -175,7 +175,7 @@ routinely a silent no-op too, because action menu items go
 use menu-bar navigation when the target is already frontmost.** For
 backgrounded targets, read state via in-window AX (window title,
 toolbar `AXStaticText`) and dispatch via in-window `element_index`
-actions. Pixel clicks are blocked in OpenClicky's default runtime. Full
+actions. Pixel clicks are blocked in NotClicky's default runtime. Full
 rationale in "Navigating native menu bars" below.
 
 **"Open \<app\>" in user speech means launch, not activate.**
@@ -192,7 +192,7 @@ is safe even for apps that normally foreground on media-load
 ## Defaults — always prefer the local MCP tools over shell shims
 
 Every reference to `click(...)`, `get_window_state(...)`, etc. in this
-skill means call the same-named tool on OpenClicky's local `computer-use`
+skill means call the same-named tool on NotClicky's local `computer-use`
 MCP server. The standalone `cua-driver` CLI examples in upstream docs
 are for local development only; they are not the product runtime path.
 
@@ -206,14 +206,14 @@ contract" above:
 | Find a pid | `list_apps` or `launch_app`'s return | `pgrep`, `ps`, `osascript frontmost` |
 | Enumerate an app's windows | `list_windows({pid})` — or read the `windows` array `launch_app` already returns | `osascript 'every window of app …'` |
 | Click / type / scroll / keys | `click`, `type_text`, `scroll`, `press_key`, `hotkey` | `osascript`, `cliclick`, raw `CGEvent`, `open <url>` |
-| Drag / drag-and-drop / marquee select | Not exposed in OpenClicky's default runtime; stop and explain that this build lacks a safe drag/pixel mode | `cliclick dd:`, `osascript drag` |
+| Drag / drag-and-drop / marquee select | Not exposed in NotClicky's default runtime; stop and explain that this build lacks a safe drag/pixel mode | `cliclick dd:`, `osascript drag` |
 | Screenshot | `screenshot` or the PNG in `get_window_state` | `screencapture` |
 | Quit an app | ask the user first, then `hotkey({pid, keys:["cmd","q"]})` | `kill`, `killall`, `pkill` |
 | Hand a file/URL to an app | `launch_app({bundle_id, urls:[<path>]})` | `open -a <App> <path>`, `open <url>` |
 
 ### The narrow frontmost carve-out
 
-OpenClicky's default runtime has no activation tool and does not allow
+NotClicky's default runtime has no activation tool and does not allow
 `osascript` activation. If the user explicitly asks for frontmost state
 ("bring Chrome to the front", "make it frontmost", "I want to see X"),
 say that this build can keep working in the background but cannot
@@ -244,7 +244,7 @@ When a Computer Use call surprises you, diagnose the local MCP state first:
 
 Only after those are ruled out, and only if the user's action
 genuinely needs frontmost state, stop and explain the foreground
-requirement. OpenClicky's default runtime does not expose an activation
+requirement. NotClicky's default runtime does not expose an activation
 tool.
 
 ### Self-check pattern
@@ -258,7 +258,7 @@ the self-check:
 2. **Does this command move the user's real cursor?** (`cliclick`,
    any `CGEventPost` at `cghidEventTap` over another app's window).
    If yes — stop; use an AX element action, keyboard shortcut, or
-   `page` action. OpenClicky's default runtime blocks coordinate clicks.
+   `page` action. NotClicky's default runtime blocks coordinate clicks.
 3. **Does this command bypass Computer Use entirely?** (`osascript`
    mutating GUI state, AppleScript files, external helpers.) If
    yes — stop; find the local MCP tool that does the intent.
@@ -271,13 +271,13 @@ editor state.
 ## Prerequisites — check before starting
 
 1. Confirm the `computer-use` MCP server is available in the current
-   Codex session. OpenClicky starts it automatically from the bundled
+   Codex session. NotClicky starts it automatically from the bundled
    `ClickyComputerUseRuntime` helper.
 2. Call `check_permissions({"prompt": false})`. If Accessibility or
    Screen Recording is missing, stop and ask the user to grant those
    permissions to Clicky.app in System Settings.
 3. Do not start daemons, install CuaDriver.app, or invoke standalone
-   shell commands. In OpenClicky, the MCP server is already the daemon.
+   shell commands. In NotClicky, the MCP server is already the daemon.
 
 ## Using the local MCP tools
 
@@ -304,7 +304,7 @@ Motion knobs: `set_agent_cursor_motion` takes any subset of
 `start_handle`, `end_handle`, `arc_size`, `arc_flow`, `spring` —
 tuneable at runtime, persisted to config.
 
-OpenClicky's MCP helper bootstraps the AppKit runloop required by the
+NotClicky's MCP helper bootstraps the AppKit runloop required by the
 overlay.
 
 ## The core invariant — snapshot before AND after every action
@@ -349,9 +349,9 @@ Two orthogonal axes shape what the agent can do.
 
 | `capture_mode` | `get_window_state` returns | Use for actions |
 |---|---|---|
-| **`som`** (default) | tree + screenshot | `element_index` preferred; pixels are diagnostic only in OpenClicky |
+| **`som`** (default) | tree + screenshot | `element_index` preferred; pixels are diagnostic only in NotClicky |
 | **`ax`** | tree only (no PNG) | `element_index` only |
-| **`vision`** | PNG only (no tree) | read-only visual inspection in OpenClicky — see [SCREENSHOT.md](./SCREENSHOT.md) |
+| **`vision`** | PNG only (no tree) | read-only visual inspection in NotClicky — see [SCREENSHOT.md](./SCREENSHOT.md) |
 
 `vision` was renamed from `screenshot` — the old name still decodes
 as a deprecated alias, so an on-disk `"capture_mode": "screenshot"`
@@ -373,7 +373,7 @@ JPEG-over-PNG finding.
 
 **Window state → what works**
 
-| state | `get_window_state` | `click`/`set_value` (AX) | `press_key` commit (Return/Space/Tab) | pixel click in OpenClicky |
+| state | `get_window_state` | `click`/`set_value` (AX) | `press_key` commit (Return/Space/Tab) | pixel click in NotClicky |
 |---|---|---|---|---|
 | frontmost | ✅ | ✅ | ✅ | blocked |
 | backgrounded / visible | ✅ | ✅ | ✅ | blocked |
@@ -413,7 +413,7 @@ side effects) and gives you the pid in one call — no `list_apps` hop.
 - `launch_app({name: "Calculator"})` — when bundle_id isn't known.
 
 `launch_app` is the **background-safe launch primitive** — that's the
-entire point of OpenClicky Computer Use: agents drive apps in the background while
+entire point of NotClicky Computer Use: agents drive apps in the background while
 the user keeps typing in their real foreground app. In Cua v0.1.6,
 LaunchServices is called without activating the target, menu hotkey
 delivery restores the previous frontmost app immediately after posting
@@ -505,7 +505,7 @@ safe backgrounded-dispatch.
 
 Standalone Cua can support coordinate-based input for canvas, video,
 WebGL, or custom-drawn surfaces that are not reachable through AX.
-OpenClicky's default runtime blocks coordinate clicks to protect the user's
+NotClicky's default runtime blocks coordinate clicks to protect the user's
 pointer model. If AX, keyboard, and `page` cannot reach the target,
 stop and explain that this build lacks a safe pixel mode instead of
 guessing.
@@ -526,8 +526,8 @@ last `get_window_state`; `window_id` is required alongside
 |---|---|---|
 | List an app's windows | `list_windows({pid})` | returns `window_id`, `title`, `bounds`, `z_index`, `is_on_screen`, `on_current_space`. Already included in `launch_app`'s response — only call this for long-lived pids |
 | Snapshot a window | `get_window_state({pid, window_id})` | returns `tree_markdown` + `screenshot_*`; populates the `(pid, window_id)` element_index cache |
-| Left click | `click({pid, window_id, element_index})` | default `action: "press"`. Coordinate `x/y` clicks are blocked by OpenClicky's tool policy. |
-| Double-click / open | Use `click({pid, window_id, element_index, action: "open"})` when the element advertises an open action | `double_click` is not exposed in OpenClicky's default runtime because it can fall back to pixel stamping. |
+| Left click | `click({pid, window_id, element_index})` | default `action: "press"`. Coordinate `x/y` clicks are blocked by NotClicky's tool policy. |
+| Double-click / open | Use `click({pid, window_id, element_index, action: "open"})` when the element advertises an open action | `double_click` is not exposed in NotClicky's default runtime because it can fall back to pixel stamping. |
 | Right click / context menu | `right_click({pid, window_id, element_index})` or `click({pid, window_id, element_index, action: "show_menu"})` | Chromium web-content coerces pixel right-click to left — see `WEB_APPS.md` |
 | Type at cursor | `type_text({pid, text, window_id, element_index})` | `AXSelectedText` write; focuses first |
 | Set whole field value | `set_value({pid, window_id, element_index, value})` | sliders, steppers, text fields; **use for keyboard-commit workarounds on minimized windows** |
@@ -550,7 +550,7 @@ and explain that this build lacks a safe pixel mode.
 
 ### Pixel-coordinate clicks
 
-OpenClicky's default `computer-use` MCP server rejects coordinate clicks.
+NotClicky's default `computer-use` MCP server rejects coordinate clicks.
 Screenshots are for visual disambiguation only: use them to choose the
 right AX element, then dispatch by `element_index`. Do not translate
 screenshot pixels into a click in this runtime.
@@ -577,7 +577,7 @@ viewport's own event-source check and silently dropped — the event
 loop wants "real HID origin".
 
 There is no safe backgrounded path that reaches these apps today in
-OpenClicky's default runtime. Stop and say the task requires a future
+NotClicky's default runtime. Stop and say the task requires a future
 foreground/pixel mode instead of silently escalating.
 
 ## Navigating native menu bars (AXMenuBar)
@@ -612,7 +612,7 @@ an in-window `AXStaticText`, title bar, or toolbar. For *dispatching*
 actions, use in-window `element_index` targets, toolbar controls,
 command palettes, keyboard shortcuts, or `page` where available. If
 the only workable path is a coordinate/pixel click, stop and say that
-this OpenClicky runtime does not expose pixel mode.
+this NotClicky runtime does not expose pixel mode.
 
 When the target IS frontmost, the menu-bar flow below is fine and
 the canonical path for menus.
@@ -655,7 +655,7 @@ the user requested genuinely requires frontmost (Preview rotate,
 View menu document manipulation, editor commands). If either
 check fails, don't activate.
 
-When both checks pass, OpenClicky's default runtime still does not expose
+When both checks pass, NotClicky's default runtime still does not expose
 an activation tool and does not allow `osascript` activation. Stop and
 tell the user the action requires the target app to be frontmost. If
 they bring it frontmost or explicitly approve a future foreground-mode
@@ -735,7 +735,7 @@ Supported backends:
 Sandboxed Electron apps (VS Code, Cursor) strip `require` and Electron
 APIs there. Useful for: `process.env`, `process.versions`, `process.cwd()`,
 `process.pid`. Do not relaunch user apps with debugging flags in
-OpenClicky's default runtime; only use a debug-port page target if the
+NotClicky's default runtime; only use a debug-port page target if the
 runtime already exposes it.
 
 Arc returns no values; Firefox has no JS-via-AppleEvents support — see
@@ -757,7 +757,7 @@ silently-dropped actions — the single most common failure mode.
 
 ## Recording trajectories
 
-OpenClicky's default runtime does not expose `set_recording`, `get_recording_state`, or `replay_trajectory`.
+NotClicky's default runtime does not expose `set_recording`, `get_recording_state`, or `replay_trajectory`.
 If the user asks to record, replay, or export a browser/app trajectory,
 stop and explain that this build cannot do it through Computer Use.
 
@@ -779,10 +779,10 @@ runtime that explicitly exposes those tools.
 ## Things to avoid
 
 - **Never** reuse an `element_index` across a re-snapshot of the same pid.
-- **Never** translate screenshot pixels into a click in OpenClicky's
+- **Never** translate screenshot pixels into a click in NotClicky's
   default runtime — the screenshot is for visual disambiguation, not
   coordinates. Use the `element_index`.
-- **Prefer AX over pixels.** OpenClicky's default runtime blocks coordinate
+- **Prefer AX over pixels.** NotClicky's default runtime blocks coordinate
   clicks; exhaust AX paths, command palettes, toolbar items, keyboard
   shortcuts, and `page` before reporting a pixel-mode blocker.
 - **Never** drive destructive actions (delete files, close unsaved

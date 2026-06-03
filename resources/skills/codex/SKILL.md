@@ -2,24 +2,24 @@
 name: codex
 description: "Delegate coding to OpenAI Codex CLI (features, PRs)."
 version: 1.0.0
-author: OpenClicky
+author: NotClicky
 license: MIT
 metadata:
-  openclicky:
+  notclicky:
     tags: [Coding-Agent, Codex, OpenAI, Code-Review, Refactoring]
     related_skills: [claude-code]
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.
 
 # Codex CLI
 
-Delegate coding tasks to [Codex](https://github.com/openai/codex) via the OpenClicky terminal. Codex is OpenAI's autonomous coding agent CLI.
+Delegate coding tasks to [Codex](https://github.com/openai/codex) via the NotClicky terminal. Codex is OpenAI's autonomous coding agent CLI.
 
 ## When to use
 
@@ -38,7 +38,7 @@ Requires the codex CLI and a git repository.
 - **Must run inside a git repository** — Codex refuses to run outside one
 - Use `pty=true` in terminal calls — Codex is an interactive terminal app
 
-For OpenClicky itself, agent authentication is managed by the active Codex runtime and Codex home. For the standalone Codex CLI, a valid CLI OAuth session may live under `~/.codex/auth.json`; do not treat a missing `OPENAI_API_KEY` alone as proof that Codex auth is missing.
+For NotClicky itself, agent authentication is managed by the active Codex runtime and Codex home. For the standalone Codex CLI, a valid CLI OAuth session may live under `~/.codex/auth.json`; do not treat a missing `OPENAI_API_KEY` alone as proof that Codex auth is missing.
 
 ## One-Shot Tasks
 

@@ -1,20 +1,20 @@
 ---
 name: google-workspace-gogcli
-description: Connect to Google Workspace through the local gogcli (`gog`) command for Gmail, Calendar, Drive, Docs, Sheets, Slides, Chat, Contacts, Tasks, Groups, Admin, Classroom, Forms, Apps Script, People, and Keep. Use when the user asks OpenClicky to use Google Workspace, Gmail, Calendar, Drive, Docs, Sheets, Slides, Chat, Contacts, Tasks, Workspace Admin, or to set up/check gogcli auth.
+description: Connect to Google Workspace through the local gogcli (`gog`) command for Gmail, Calendar, Drive, Docs, Sheets, Slides, Chat, Contacts, Tasks, Groups, Admin, Classroom, Forms, Apps Script, People, and Keep. Use when the user asks NotClicky to use Google Workspace, Gmail, Calendar, Drive, Docs, Sheets, Slides, Chat, Contacts, Tasks, Workspace Admin, or to set up/check gogcli auth.
 version: 1.0.0
 argument-hint: "[workspace task or auth setup]"
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.
 
-Use `gog` from https://github.com/steipete/gogcli as OpenClicky's local Google Workspace connector.
+Use `gog` from https://github.com/steipete/gogcli as NotClicky's local Google Workspace connector.
 
-This is a local CLI integration, not an OpenClicky-hosted Google login. Do not add hosted key sync, server-side OAuth, or repository-stored credentials. `gog` stores credentials in its own OS keyring or encrypted/file keyring under the user's local account.
+This is a local CLI integration, not an NotClicky-hosted Google login. Do not add hosted key sync, server-side OAuth, or repository-stored credentials. `gog` stores credentials in its own OS keyring or encrypted/file keyring under the user's local account.
 
 ## First checks
 
@@ -26,7 +26,7 @@ gog auth credentials list --json
 gog --json auth list --check
 ```
 
-If `gog auth list` reports that the file keyring needs a passphrase, stop and tell the user gogcli needs its local keyring passphrase available to OpenClicky as `GOG_KEYRING_PASSWORD`, usually in `~/.config/openclicky/secrets.env`, or they should migrate gogcli to the macOS Keychain backend. Do not keep retrying.
+If `gog auth list` reports that the file keyring needs a passphrase, stop and tell the user gogcli needs its local keyring passphrase available to NotClicky as `GOG_KEYRING_PASSWORD`, usually in `~/.config/notclicky/secrets.env`, or they should migrate gogcli to the macOS Keychain backend. Do not keep retrying.
 
 If `gog` is not installed on macOS:
 
@@ -36,9 +36,9 @@ brew install gogcli
 
 ## Setup flow
 
-For normal Gmail/Calendar/Drive tasks, do not run OAuth setup from the agent. Google setup belongs in OpenClicky Settings → Google unless the user explicitly asks for setup help.
+For normal Gmail/Calendar/Drive tasks, do not run OAuth setup from the agent. Google setup belongs in NotClicky Settings → Google unless the user explicitly asks for setup help.
 
-If Google OAuth says the app is "Clicky", that branding comes from the local gogcli OAuth client stored in `~/Library/Application Support/gogcli/credentials.json`. OpenClicky is reusing the local gogcli store. To make OAuth say OpenClicky, replace that gogcli credential file with an OpenClicky-owned Desktop OAuth client and re-auth.
+If Google OAuth says the app is "Clicky", that branding comes from the local gogcli OAuth client stored in `~/Library/Application Support/gogcli/credentials.json`. NotClicky is reusing the local gogcli store. To make OAuth say NotClicky, replace that gogcli credential file with an NotClicky-owned Desktop OAuth client and re-auth.
 
 The user must provide or create a Google Cloud Desktop OAuth client JSON. Do not create or store secrets in the repository.
 
@@ -86,7 +86,7 @@ Use `--account work` or `GOG_ACCOUNT=work` in later commands.
 - Use `--json` for agent parsing.
 - Use `--account <email|alias|auto>` when there may be multiple accounts.
 - Respect `GOG_ENABLE_COMMANDS`, `GOG_DISABLE_COMMANDS`, and `GOG_GMAIL_NO_SEND` if set.
-- If auth is missing, point the user to OpenClicky Settings → Google. Only provide `gog auth credentials` / `gog auth add` commands when the user explicitly asks for manual setup.
+- If auth is missing, point the user to NotClicky Settings → Google. Only provide `gog auth credentials` / `gog auth add` commands when the user explicitly asks for manual setup.
 
 Useful safety env examples:
 
@@ -193,9 +193,9 @@ Use these only for Workspace domains where the user has admin authorization.
 
 ## Troubleshooting
 
-- `credentials_exists: false`: check `gog auth credentials list --json`; if still empty, use OpenClicky Settings → Google or run `gog auth credentials <client-json>` only for explicit setup tasks.
-- No accounts in `gog auth list`: use OpenClicky Settings → Google or run `gog auth add <email> --services ...` only for explicit setup tasks.
-- Re-auth needed or missing scopes: use OpenClicky Settings → Google, or run `gog auth add <email> --services ... --force-consent` only for explicit setup tasks.
+- `credentials_exists: false`: check `gog auth credentials list --json`; if still empty, use NotClicky Settings → Google or run `gog auth credentials <client-json>` only for explicit setup tasks.
+- No accounts in `gog auth list`: use NotClicky Settings → Google or run `gog auth add <email> --services ...` only for explicit setup tasks.
+- Re-auth needed or missing scopes: use NotClicky Settings → Google, or run `gog auth add <email> --services ... --force-consent` only for explicit setup tasks.
 - Keyring issues: run `gog auth doctor`; on headless systems use the file keyring intentionally.
 - Multiple clients/accounts: use `--client`, `GOG_CLIENT`, `--account`, or account aliases.
 - Command not available: inspect with `GOG_HELP=full gog --help` or `gog <group> --help`.

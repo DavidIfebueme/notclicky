@@ -7,7 +7,7 @@ description: Read, search, create, and edit notes in the configured Obsidian vau
 
 Use this skill for filesystem-first Obsidian vault work: reading notes, listing notes, searching note files, creating notes, appending content, adding wikilinks, backlinks, tags, and daily notes.
 
-OpenClicky exposes Obsidian as a local vault path, not as a Composio connector. Use this skill only when the runtime instructions include an Obsidian vault path.
+NotClicky exposes Obsidian as a local vault path, not as a Composio connector. Use this skill only when the runtime instructions include an Obsidian vault path.
 
 ## Vault Path
 

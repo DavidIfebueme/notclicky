@@ -5,7 +5,7 @@ version: 1.1.0
 author: Hermes Agent
 license: MIT
 metadata:
-  hermes:
+  notclicky:
     tags: [GitHub, Code-Review, Pull-Requests, Git, Quality]
     related_skills: [github-auth, github-pr-workflow]
 ---

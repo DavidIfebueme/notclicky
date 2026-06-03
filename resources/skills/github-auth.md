@@ -5,7 +5,7 @@ version: 1.1.0
 author: Hermes Agent
 license: MIT
 metadata:
-  hermes:
+  notclicky:
     tags: [GitHub, Authentication, Git, gh-cli, SSH, Setup]
     related_skills: [github-pr-workflow, github-code-review, github-issues, github-repo-management]
 ---

@@ -5,16 +5,16 @@ version: 1.0.0
 author: community
 license: MIT
 metadata:
-  openclicky:
+  notclicky:
     tags: [Notion, Productivity, Notes, Database, API]
     homepage: https://developers.notion.com
 prerequisites:
   env_vars: [NOTION_API_KEY]
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.
@@ -140,7 +140,7 @@ curl -s -X PATCH "https://api.notion.com/v1/blocks/{page_id}/children" \
   -H "Content-Type: application/json" \
   -d '{
     "children": [
-      {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Hello from OpenClicky!"}}]}}
+      {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"text": {"content": "Hello from NotClicky!"}}]}}
     ]
   }'
 ```
@@ -174,5 +174,5 @@ Common property formats for database items:
 - Rate limit: ~3 requests/second average
 - The API cannot set database view filters — that's UI-only
 - Use `is_inline: true` when creating data sources to embed them in pages
-- Add `-s` flag to curl to suppress progress bars (cleaner output for OpenClicky)
+- Add `-s` flag to curl to suppress progress bars (cleaner output for NotClicky)
 - Pipe output through `jq` for readable JSON: `... | jq '.results[0].properties'`

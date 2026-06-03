@@ -5,16 +5,16 @@ version: 1.2.0
 author: Mibayy
 license: MIT
 metadata:
-  openclicky:
+  notclicky:
     tags: [maps, geocoding, places, routing, distance, directions, nearby, location, openstreetmap, nominatim, overpass, osrm]
     category: productivity
     requires_toolsets: [terminal]
     supersedes: [find-nearby]
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.
@@ -43,7 +43,7 @@ functionality is covered by the `nearby` command below, with the same
 
 ## Prerequisites
 
-Python 3.8+ or curl. This imported OpenClicky skill does not currently ship the old maps helper script, so use direct public APIs when no local helper exists.
+Python 3.8+ or curl. This imported NotClicky skill does not currently ship the old maps helper script, so use direct public APIs when no local helper exists.
 
 Useful endpoints:
 - Nominatim search: `https://nominatim.openstreetmap.org/search?format=json&q=...`

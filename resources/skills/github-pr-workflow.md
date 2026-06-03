@@ -5,7 +5,7 @@ version: 1.1.0
 author: Hermes Agent
 license: MIT
 metadata:
-  hermes:
+  notclicky:
     tags: [GitHub, Pull-Requests, CI/CD, Git, Automation, Merge]
     related_skills: [github-auth, github-code-review]
 ---

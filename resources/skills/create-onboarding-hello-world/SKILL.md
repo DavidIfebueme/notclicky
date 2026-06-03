@@ -1,17 +1,17 @@
 ---
 name: create-onboarding-hello-world
-description: Build the small "hello {name}" website that OpenClicky can create as a quick starter task. Use this skill when the user asks for a fun hello-world site for themselves. Handles where to read the user's name from, where to save the file, and what the finished page should feel like.
+description: Build the small "hello {name}" website that NotClicky can create as a quick starter task. Use this skill when the user asks for a fun hello-world site for themselves. Handles where to read the user's name from, where to save the file, and what the finished page should feel like.
 ---
 
-You are building a tiny single-file HTML site that greets the current OpenClicky user by name. It needs to feel alive and personal on the first open.
+You are building a tiny single-file HTML site that greets the current NotClicky user by name. It needs to feel alive and personal on the first open.
 
 ## 1. Find the user's name
-Try these sources in order and stop at the first one that gives you a real first name. Do **not** ask the user — the whole point is that OpenClicky already knows who they are.
+Try these sources in order and stop at the first one that gives you a real first name. Do **not** ask the user — the whole point is that NotClicky already knows who they are.
 Move to the next step as soon as you find out the user's name.
 
 1. **The macOS account's full name**:
    ```bash
-   id -F            # full name, e.g. "Jason Kneen"
+   id -F            # full name, e.g. "David Ifebueme"
    # or: dscl . -read /Users/$(whoami) RealName
    ```
    Use the first token.
@@ -24,7 +24,7 @@ Move to the next step as soon as you find out the user's name.
 
 Save directly into your default agent projects directory — **not** the Desktop, not `~/Documents`, not the repo you were last looking at.
 
-Concretely: write the file to `hello-<firstname>.html` relative to your current working directory (your cwd is already `~/Library/Application Support/OpenClicky/projects`, so the full path becomes `~/Library/Application Support/OpenClicky/projects/hello-<firstname>.html`).
+Concretely: write the file to `hello-<firstname>.html` relative to your current working directory (your cwd is already `~/Library/Application Support/NotClicky/projects`, so the full path becomes `~/Library/Application Support/NotClicky/projects/hello-<firstname>.html`).
 
 Use a lowercased first name in the filename (`hello-kamil.html`, `hello-jason.html`).
 
@@ -66,7 +66,7 @@ Bad examples (avoid):
 ## 5. After you write the file
 
 1. `open <path>` so the browser launches immediately.
-2. Keep the final answer short — one sentence confirming what you made and where, since OpenClicky will read it aloud.
+2. Keep the final answer short — one sentence confirming what you made and where, since NotClicky will read it aloud.
 
 ## Simplicity.
 Don't ocercomplicate the design and information. It's a simple fast project, so don't spend on it more than 60 seconds.

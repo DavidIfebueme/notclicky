@@ -5,14 +5,14 @@ version: 1.0.0
 author: BadTechBandit
 license: MIT
 metadata:
-  openclicky:
+  notclicky:
     tags: [design, html, prototype, ux, ui, creative, artifact, deck, motion, design-system]
     related_skills: [design-md, popular-web-designs, excalidraw, architecture-diagram]
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.
@@ -27,7 +27,7 @@ The goal is to preserve Claude Design's useful design behavior and taste while r
 
 ## When To Use This Skill vs `popular-web-designs` vs `design-md`
 
-OpenClicky has three design-related skills under `skills/creative/`. They do different jobs — load the right one (or combine them):
+NotClicky has three design-related skills under `skills/creative/`. They do different jobs — load the right one (or combine them):
 
 | Skill | What it gives you | Use when the user wants... |
 |---|---|---|

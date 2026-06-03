@@ -2,20 +2,20 @@
 name: apple-notes
 description: "Manage Apple Notes via memo CLI: create, search, edit."
 version: 1.0.0
-author: OpenClicky
+author: NotClicky
 license: MIT
 platforms: [macos]
 metadata:
-  openclicky:
+  notclicky:
     tags: [Notes, Apple, macOS, note-taking]
     related_skills: [obsidian]
 prerequisites:
   commands: [memo]
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.

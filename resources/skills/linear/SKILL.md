@@ -2,19 +2,19 @@
 name: linear
 description: "Linear: manage issues, projects, teams via GraphQL + curl."
 version: 1.0.0
-author: OpenClicky
+author: NotClicky
 license: MIT
 prerequisites:
   env_vars: [LINEAR_API_KEY]
   commands: [curl]
 metadata:
-  openclicky:
+  notclicky:
     tags: [Linear, Project Management, Issues, GraphQL, API, Productivity]
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.
@@ -45,7 +45,7 @@ curl -s -X POST https://api.linear.app/graphql \
 
 ## Optional helper scripts
 
-This imported OpenClicky skill does not currently ship the old Linear helper script. Use the curl GraphQL patterns below, or create a local helper only if the task repeats enough to justify it.
+This imported NotClicky skill does not currently ship the old Linear helper script. Use the curl GraphQL patterns below, or create a local helper only if the task repeats enough to justify it.
 
 ## Workflow States
 

@@ -2,11 +2,11 @@
 name: excalidraw
 description: "Hand-drawn Excalidraw JSON diagrams (arch, flow, seq)."
 version: 1.0.0
-author: OpenClicky
+author: NotClicky
 license: MIT
 dependencies: []
 metadata:
-  openclicky:
+  notclicky:
     tags: [Excalidraw, Diagrams, Flowcharts, Architecture, Visualization, JSON]
     related_skills: []
 
@@ -35,7 +35,7 @@ Wrap your elements array in the standard `.excalidraw` envelope and save with `w
 {
   "type": "excalidraw",
   "version": 2,
-  "source": "openclicky-agent",
+  "source": "notclicky-agent",
   "elements": [ ...your elements array here... ],
   "appState": {
     "viewBackgroundColor": "#ffffff"

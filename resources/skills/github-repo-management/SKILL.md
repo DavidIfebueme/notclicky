@@ -2,17 +2,17 @@
 name: github-repo-management
 description: "Clone/create/fork repos; manage remotes, releases."
 version: 1.1.0
-author: OpenClicky
+author: NotClicky
 license: MIT
 metadata:
-  openclicky:
+  notclicky:
     tags: [GitHub, Repositories, Git, Releases, Secrets, Configuration]
     related_skills: [github-auth, github-pr-workflow, github-issues]
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.

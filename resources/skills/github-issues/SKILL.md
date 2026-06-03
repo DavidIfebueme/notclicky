@@ -2,17 +2,17 @@
 name: github-issues
 description: "Create, triage, label, assign GitHub issues via gh or REST."
 version: 1.1.0
-author: OpenClicky
+author: NotClicky
 license: MIT
 metadata:
-  openclicky:
+  notclicky:
     tags: [GitHub, Issues, Project-Management, Bug-Tracking, Triage]
     related_skills: [github-auth, github-pr-workflow]
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.

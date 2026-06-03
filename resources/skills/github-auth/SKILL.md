@@ -2,17 +2,17 @@
 name: github-auth
 description: "GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login."
 version: 1.1.0
-author: OpenClicky
+author: NotClicky
 license: MIT
 metadata:
-  openclicky:
+  notclicky:
     tags: [GitHub, Authentication, Git, gh-cli, SSH, Setup]
     related_skills: [github-pr-workflow, github-code-review, github-issues, github-repo-management]
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.
@@ -58,7 +58,7 @@ This is the most portable method — works everywhere, no SSH config needed.
 Tell the user to go to: **https://github.com/settings/tokens**
 
 - Click "Generate new token (classic)"
-- Give it a name like "openclicky-agent"
+- Give it a name like "notclicky-agent"
 - Select scopes:
   - `repo` (full repository access — read, write, push, PRs)
   - `workflow` (trigger and manage GitHub Actions)
@@ -137,7 +137,7 @@ cat ~/.ssh/id_ed25519.pub
 Tell the user to add the public key at: **https://github.com/settings/keys**
 - Click "New SSH key"
 - Paste the public key content
-- Give it a title like "openclicky-agent-<machine-name>"
+- Give it a title like "notclicky-agent-<machine-name>"
 
 **Step 3: Test the connection**
 

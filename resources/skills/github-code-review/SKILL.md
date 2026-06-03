@@ -2,17 +2,17 @@
 name: github-code-review
 description: "Review PRs: diffs, inline comments via gh or REST."
 version: 1.1.0
-author: OpenClicky
+author: NotClicky
 license: MIT
 metadata:
-  openclicky:
+  notclicky:
     tags: [GitHub, Code-Review, Pull-Requests, Git, Quality]
     related_skills: [github-auth, github-pr-workflow]
 ---
 
-## OpenClicky compatibility guardrails
+## NotClicky compatibility guardrails
 
-- Follow `../_shared/OpenClickySkillCompatibilityPolicy.md` before acting.
+- Follow `../_shared/NotClickySkillCompatibilityPolicy.md` before acting.
 - Verify required local commands, tools, keys, or bridge endpoints before promising execution.
 - Treat sends, publishes, deploys, deletes, moves, merges, playlist/library changes, cloud writes, and app-control clicks as external writes unless this skill narrows them further.
 - Stop and report the exact missing setup step for unavailable tools, auth, or macOS permissions; do not loop or silently switch to browser automation.
@@ -268,7 +268,7 @@ curl -s -X POST \
   -d "{
     \"commit_id\": \"$HEAD_SHA\",
     \"event\": \"COMMENT\",
-    \"body\": \"Code review from OpenClicky\",
+    \"body\": \"Code review from NotClicky\",
     \"comments\": [
       {\"path\": \"src/auth.py\", \"line\": 45, \"body\": \"Use parameterized queries to prevent SQL injection.\"},
       {\"path\": \"src/models/user.py\", \"line\": 23, \"body\": \"Hash passwords with bcrypt before storing.\"},
@@ -415,7 +415,7 @@ Collect your findings and submit them as a formal review with inline comments.
 **With gh:**
 ```bash
 # If no issues — approve
-gh pr review $PR_NUMBER --approve --body "Reviewed by OpenClicky. Code looks clean — good test coverage, no security concerns."
+gh pr review $PR_NUMBER --approve --body "Reviewed by NotClicky. Code looks clean — good test coverage, no security concerns."
 
 # If issues found — request changes with inline comments
 gh pr review $PR_NUMBER --request-changes --body "Found a few issues — see inline comments."
@@ -434,7 +434,7 @@ curl -s -X POST \
   -d "{
     \"commit_id\": \"$HEAD_SHA\",
     \"event\": \"REQUEST_CHANGES\",
-    \"body\": \"## OpenClicky Review\n\nFound 2 issues, 1 suggestion. See inline comments.\",
+    \"body\": \"## NotClicky Review\n\nFound 2 issues, 1 suggestion. See inline comments.\",
     \"comments\": [
       {\"path\": \"src/auth.py\", \"line\": 45, \"body\": \"🔴 **Critical:** User input passed directly to SQL query — use parameterized queries.\"},
       {\"path\": \"src/models.py\", \"line\": 23, \"body\": \"⚠️ **Warning:** Password stored without hashing.\"},
@@ -468,7 +468,7 @@ gh pr comment $PR_NUMBER --body "$(cat <<'EOF'
 - Good error handling in the middleware layer
 
 ---
-*Reviewed by OpenClicky*
+*Reviewed by NotClicky*
 EOF
 )"
 ```

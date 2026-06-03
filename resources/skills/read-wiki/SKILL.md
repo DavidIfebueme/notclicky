@@ -5,16 +5,16 @@ description: Use when a task references a specific project, person, or note the 
 
 # read-wiki
 
-OpenClicky maintains a local personal wiki of plain markdown notes the user (and OpenClicky) has written about their projects, the people they care about, references, and anything else worth remembering across agent runs.
+NotClicky maintains a local personal wiki of plain markdown notes the user (and NotClicky) has written about their projects, the people they care about, references, and anything else worth remembering across agent runs.
 
 The user's overall personality / voice / tone (`Personality.md`) is already inlined into your system prompt at startup, so you do NOT need this skill for tone matching. Use it only when a task references a specific named project, person, or note.
 
 ## Where it lives
 
-- Wiki content (curated notes): `~/Library/Application Support/OpenClicky/wiki/wiki/`
-- Raw saves (auto-captured snippets): `~/Library/Application Support/OpenClicky/wiki/raw/`
-- Index: `~/Library/Application Support/OpenClicky/wiki/wiki/_index.md`
-- Backlinks graph: `~/Library/Application Support/OpenClicky/wiki/wiki/_backlinks.json`
+- Wiki content (curated notes): `~/Library/Application Support/NotClicky/wiki/wiki/`
+- Raw saves (auto-captured snippets): `~/Library/Application Support/NotClicky/wiki/raw/`
+- Index: `~/Library/Application Support/NotClicky/wiki/wiki/_index.md`
+- Backlinks graph: `~/Library/Application Support/NotClicky/wiki/wiki/_backlinks.json`
 
 ## How to use it
 
@@ -23,7 +23,7 @@ This is a **read-only** skill. Don't create, edit, or delete anything in the wik
 Start with the index:
 
 ```bash
-cat "$HOME/Library/Application Support/OpenClicky/wiki/wiki/_index.md"
+cat "$HOME/Library/Application Support/NotClicky/wiki/wiki/_index.md"
 ```
 
 The index is structured as `[[Title]] (relative/path.md) — short description` plus an `also:` line listing aliases. Use the aliases to match user phrasings ("my tone", "how I write", "my project", a person's nickname, etc.) — they're there exactly so you don't have to guess at filenames.
@@ -32,19 +32,19 @@ Then read only the targeted note(s). Examples:
 
 ```bash
 # Writing in the user's voice / matching tone / personality-sensitive task
-cat "$HOME/Library/Application Support/OpenClicky/wiki/wiki/Personality.md"
+cat "$HOME/Library/Application Support/NotClicky/wiki/wiki/Personality.md"
 
 # Drafting about a project
-cat "$HOME/Library/Application Support/OpenClicky/wiki/wiki/projects/openclicky.md"
+cat "$HOME/Library/Application Support/NotClicky/wiki/wiki/projects/notclicky.md"
 
 # Mentioning a person they know
-cat "$HOME/Library/Application Support/OpenClicky/wiki/wiki/people/farza-majeed.md"
+cat "$HOME/Library/Application Support/NotClicky/wiki/wiki/people/farza-majeed.md"
 ```
 
 If you don't know which note applies, grep:
 
 ```bash
-grep -rli "<keyword>" "$HOME/Library/Application Support/OpenClicky/wiki/wiki/"
+grep -rli "<keyword>" "$HOME/Library/Application Support/NotClicky/wiki/wiki/"
 ```
 
 ## When to consult it

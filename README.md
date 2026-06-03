@@ -43,16 +43,10 @@ sudo pacman -S gtk4 libadwaita pipewire libx11 xcb-util-keysyms
 
 - `~/.config/notclicky/config.toml` — provider selection, model, voice settings
 
-## status
-
-phases 0-11 done. packaging next.
-
-see [AGENTS.md](AGENTS.md) for the full build checklist.
-
 ## shoutouts
 
-- [jason kneen](https://github.com/jasonkneen) — openclicky, the original that inspired this
-- [farza](https://x.com/FarzaTV) — for the energy around making ai companions that feel real
+- [jason kneen](https://github.com/jasonkneen)
+- [farza](https://x.com/FarzaTV)
 
 ## license
 

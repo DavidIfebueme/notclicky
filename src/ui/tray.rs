@@ -5,6 +5,7 @@ use std::sync::mpsc;
 
 enum TrayEvent {
     Chat,
+    MiniChat,
     Settings,
     Quit,
 }
@@ -25,6 +26,7 @@ impl Tray for TrayIcon {
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
         use ksni::MenuItem;
         let tx_chat = self.tx.clone();
+        let tx_mini = self.tx.clone();
         let tx_settings = self.tx.clone();
         let tx_quit = self.tx.clone();
         vec![
@@ -32,6 +34,13 @@ impl Tray for TrayIcon {
                 label: "Chat".into(),
                 activate: Box::new(move |_: &mut TrayIcon| {
                     let _ = tx_chat.send(TrayEvent::Chat);
+                }),
+                ..Default::default()
+            }),
+            MenuItem::Standard(ksni::menu::StandardItem {
+                label: "Mini Chat".into(),
+                activate: Box::new(move |_: &mut TrayIcon| {
+                    let _ = tx_mini.send(TrayEvent::MiniChat);
                 }),
                 ..Default::default()
             }),
@@ -57,6 +66,7 @@ impl Tray for TrayIcon {
 
 pub fn setup(app: &adw::Application) {
     let panel_window = crate::ui::panel::build_panel(app);
+    let mini_window = crate::ui::panel::build_mini_panel(app);
     let settings_window = crate::ui::settings::build_settings_window(app);
 
     let (tx, rx) = mpsc::channel::<TrayEvent>();
@@ -65,6 +75,7 @@ pub fn setup(app: &adw::Application) {
     ksni::TrayService::new(tray).spawn();
 
     let panel = panel_window.clone();
+    let mini = mini_window.clone();
     let settings = settings_window.clone();
     gtk4::glib::MainContext::default().spawn_local(async move {
         loop {
@@ -72,9 +83,11 @@ pub fn setup(app: &adw::Application) {
             while let Ok(event) = rx.try_recv() {
                 match event {
                     TrayEvent::Chat => panel.present(),
+                    TrayEvent::MiniChat => mini.present(),
                     TrayEvent::Settings => settings.present(),
                     TrayEvent::Quit => {
                         panel.close();
+                        mini.close();
                         settings.close();
                     }
                 }

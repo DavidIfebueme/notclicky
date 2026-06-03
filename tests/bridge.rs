@@ -57,7 +57,7 @@ fn create_test_app() -> axum::Router {
         screen: std::sync::Arc::new(tokio::sync::Mutex::new(Box::new(StubScreenCapture))),
         tts: std::sync::Arc::new(tokio::sync::Mutex::new(Box::new(StubTts))),
         llm: std::sync::Arc::new(tokio::sync::Mutex::new(Box::new(StubLlm))),
-        auth_token: "test-token".to_string(),
+        _auth_token: "test-token".to_string(),
         event_tx,
     };
 

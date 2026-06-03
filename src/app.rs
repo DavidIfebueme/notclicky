@@ -27,8 +27,8 @@ pub struct LlmConfig {
     pub base_url: String,
     #[serde(default = "default_llm_model")]
     pub model: String,
-    #[serde(default = "default_max_tokens")]
-    pub max_tokens: u32,
+    #[serde(default = "default_max_tokens", rename = "max_tokens")]
+    pub _max_tokens: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -81,7 +81,7 @@ impl Default for LlmConfig {
             provider: default_llm_provider(),
             base_url: String::new(),
             model: default_llm_model(),
-            max_tokens: default_max_tokens(),
+            _max_tokens: default_max_tokens(),
         }
     }
 }
@@ -123,7 +123,7 @@ impl Default for OverlayConfig {
 }
 
 fn default_llm_provider() -> String { "openai-compatible".into() }
-fn default_llm_model() -> String { "glm-4".into() }
+fn default_llm_model() -> String { "glm-4-plus".into() }
 fn default_max_tokens() -> u32 { 4096 }
 fn default_tts_provider() -> String { "edge".into() }
 fn default_stt_provider() -> String { "whisper-cpp".into() }
@@ -188,6 +188,7 @@ impl Secrets {
         self.values.get(key).map(|s| s.as_str())
     }
 
+    #[allow(dead_code)]
     pub fn require(&self, key: &str) -> Result<&str> {
         self.get(key).ok_or_else(|| {
             anyhow::anyhow!(

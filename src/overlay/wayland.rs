@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::overlay::cursor::OverlayCommand;
 
 pub struct WaylandOverlay {
-    notify_available: bool,
+    _notify_available: bool,
 }
 
 impl WaylandOverlay {
@@ -14,9 +14,10 @@ impl WaylandOverlay {
             .map(|o| o.status.success())
             .unwrap_or(false);
 
-        Ok(Self { notify_available })
+        Ok(Self { _notify_available: notify_available })
     }
 
+    #[allow(dead_code)]
     pub fn send(&self, cmd: OverlayCommand) -> Result<()> {
         match cmd {
             OverlayCommand::ShowCursor(point, label, _) => {
@@ -46,7 +47,7 @@ impl WaylandOverlay {
     }
 
     fn notify(&self, title: &str, body: &str) {
-        if !self.notify_available {
+        if !self._notify_available {
             return;
         }
         let _ = std::process::Command::new("notify-send")

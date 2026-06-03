@@ -14,5 +14,6 @@ pub struct CaptureResult {
 pub trait ScreenCapture: Send + Sync {
     async fn capture_all(&self) -> Result<Vec<CaptureResult>>;
     async fn capture_cursor_screen(&self) -> Result<CaptureResult>;
+    #[allow(dead_code)]
     async fn capture_focused_window(&self) -> Result<CaptureResult>;
 }

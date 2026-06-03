@@ -15,30 +15,30 @@ use crate::notclicky_app::NotClickyApp;
 
 pub struct PanelState {
     history: ConversationHistory,
-    conversations: Vec<SavedConversation>,
-    current_conversation: usize,
-    mini_mode: bool,
+    _conversations: Vec<SavedConversation>,
+    _current_conversation: usize,
+    _mini_mode: bool,
 }
 
 #[derive(Clone)]
 struct SavedConversation {
-    id: String,
-    title: String,
-    preview: String,
-    history: ConversationHistory,
+    _id: String,
+    _title: String,
+    _preview: String,
+    _history: ConversationHistory,
 }
 
 pub fn build_panel(app: &adw::Application, nc_app: &NotClickyApp) -> (adw::ApplicationWindow, adw::ApplicationWindow) {
     let state = Rc::new(RefCell::new(PanelState {
         history: ConversationHistory::new(),
-        conversations: vec![SavedConversation {
-            id: "new".to_string(),
-            title: "New Chat".to_string(),
-            preview: String::new(),
-            history: ConversationHistory::new(),
+        _conversations: vec![SavedConversation {
+            _id: "new".to_string(),
+            _title: "New Chat".to_string(),
+            _preview: String::new(),
+            _history: ConversationHistory::new(),
         }],
-        current_conversation: 0,
-        mini_mode: false,
+        _current_conversation: 0,
+        _mini_mode: false,
     }));
 
     let window = adw::ApplicationWindow::builder()
@@ -80,8 +80,13 @@ pub fn build_panel(app: &adw::Application, nc_app: &NotClickyApp) -> (adw::Appli
 
     let main_layout = Box::new(Orientation::Horizontal, 0);
 
-    let sidebar = build_conversation_sidebar(&state);
-    let content_area = build_content_area(&state, nc_app, &mini_window);
+    let messages_list = ListBox::new();
+    messages_list.add_css_class("rich-list");
+    messages_list.set_selection_mode(gtk4::SelectionMode::None);
+
+    let sidebar = build_conversation_sidebar(&messages_list);
+
+    let content_area = build_content_area(&state, nc_app, &mini_window, &messages_list);
 
     main_layout.append(&sidebar);
     main_layout.append(&gtk4::Separator::new(Orientation::Vertical));
@@ -93,7 +98,7 @@ pub fn build_panel(app: &adw::Application, nc_app: &NotClickyApp) -> (adw::Appli
     (window, mini_window)
 }
 
-fn build_conversation_sidebar(state: &Rc<RefCell<PanelState>>) -> gtk4::Widget {
+fn build_conversation_sidebar(messages_list: &ListBox) -> gtk4::Widget {
     let sidebar = Box::new(Orientation::Vertical, 0);
     sidebar.set_width_request(180);
 
@@ -116,6 +121,13 @@ fn build_conversation_sidebar(state: &Rc<RefCell<PanelState>>) -> gtk4::Widget {
     new_button.set_margin_end(8);
     new_button.set_margin_bottom(8);
 
+    let messages_clone = messages_list.clone();
+    new_button.connect_clicked(move |_| {
+        while let Some(child) = messages_clone.first_child() {
+            messages_clone.remove(&child);
+        }
+    });
+
     let scrolled = ScrolledWindow::new();
     scrolled.set_vexpand(true);
     scrolled.set_child(Some(&list));
@@ -127,7 +139,7 @@ fn build_conversation_sidebar(state: &Rc<RefCell<PanelState>>) -> gtk4::Widget {
     sidebar.upcast()
 }
 
-fn build_content_area(state: &Rc<RefCell<PanelState>>, nc_app: &NotClickyApp, mini_window: &adw::ApplicationWindow) -> gtk4::Widget {
+fn build_content_area(state: &Rc<RefCell<PanelState>>, nc_app: &NotClickyApp, mini_window: &adw::ApplicationWindow, messages_list: &ListBox) -> gtk4::Widget {
     let content = Box::new(Orientation::Vertical, 0);
 
     let header = adw::HeaderBar::builder()
@@ -146,14 +158,10 @@ fn build_content_area(state: &Rc<RefCell<PanelState>>, nc_app: &NotClickyApp, mi
     content.append(&header);
     content.append(&Separator::new(Orientation::Horizontal));
 
-    let messages_list = ListBox::new();
-    messages_list.add_css_class("rich-list");
-    messages_list.set_selection_mode(gtk4::SelectionMode::None);
-
     let scrolled = ScrolledWindow::new();
     scrolled.set_vexpand(true);
     scrolled.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
-    scrolled.set_child(Some(&messages_list));
+    scrolled.set_child(Some(messages_list));
 
     content.append(&scrolled);
     content.append(&Separator::new(Orientation::Horizontal));
@@ -193,7 +201,7 @@ fn build_content_area(state: &Rc<RefCell<PanelState>>, nc_app: &NotClickyApp, mi
     });
 
     let window_ref: Rc<RefCell<Option<gtk4::Window>>> = Rc::new(RefCell::new(None));
-    let mini_win = mini_window.clone();
+    let _mini_win = mini_window.clone();
     memory_button.connect_clicked(move |_| {
         show_memory_drawer(&window_ref);
     });
@@ -381,7 +389,7 @@ fn show_memory_drawer(window_ref: &Rc<RefCell<Option<gtk4::Window>>>) {
 
     let config_dir = dirs::config_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
     let memory_path = config_dir.join("notclicky").join("memory.md");
-    let mut memory = crate::memory::conversation::PersistentMemory::new(memory_path);
+    let memory = crate::memory::conversation::PersistentMemory::new(memory_path);
     let buffer = memory_view.buffer();
     buffer.set_text(memory.get());
 

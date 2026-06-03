@@ -5,12 +5,12 @@ use std::pin::Pin;
 use crate::voice::tts::{AudioChunk, AudioStream, TtsProvider};
 
 pub struct CartesiaProvider {
-    api_key: String,
+    _api_key: String,
 }
 
 impl CartesiaProvider {
     pub fn new(api_key: String) -> Self {
-        Self { api_key }
+        Self { _api_key: api_key }
     }
 }
 

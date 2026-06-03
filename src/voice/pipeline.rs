@@ -6,19 +6,21 @@ use crate::voice::capture::AudioCapture;
 use crate::voice::push_to_talk::GlobalHotkey;
 use crate::voice::transcription::{SttProvider, Transcript};
 
-type TranscriptCallback = Box<dyn Fn(Transcript) + Send + 'static>;
+type _TranscriptCallback = Box<dyn Fn(Transcript) + Send + 'static>;
 
-const INTERIM_INTERVAL: Duration = Duration::from_millis(500);
+const _INTERIM_INTERVAL: Duration = Duration::from_millis(500);
 
+#[allow(dead_code)]
 pub struct VoicePipeline {
     hotkey: Arc<Mutex<Box<dyn GlobalHotkey>>>,
     capture: Arc<Mutex<AudioCapture>>,
     stt: Arc<Mutex<Box<dyn SttProvider>>>,
     running: Arc<AtomicBool>,
-    on_transcript: Arc<Mutex<Option<TranscriptCallback>>>,
+    on_transcript: Arc<Mutex<Option<_TranscriptCallback>>>,
 }
 
 impl VoicePipeline {
+    #[allow(dead_code)]
     pub fn new(
         hotkey: Box<dyn GlobalHotkey>,
         capture: AudioCapture,
@@ -33,10 +35,12 @@ impl VoicePipeline {
         }
     }
 
-    pub fn set_on_transcript(&self, cb: TranscriptCallback) {
+    #[allow(dead_code)]
+    pub fn set_on_transcript(&self, cb: _TranscriptCallback) {
         *self.on_transcript.lock().unwrap() = Some(cb);
     }
 
+    #[allow(dead_code)]
     pub fn start(&self) -> anyhow::Result<()> {
         self.hotkey.lock().unwrap().register(vec!["Control", "Alt"], None)?;
         self.running.store(true, Ordering::SeqCst);
@@ -64,7 +68,7 @@ impl VoicePipeline {
                     last_interim = Instant::now();
                     was_pressed = true;
                 } else if pressed && was_pressed {
-                    if last_interim.elapsed() >= INTERIM_INTERVAL {
+                    if last_interim.elapsed() >= _INTERIM_INTERVAL {
                         let audio = capture.lock().unwrap().snapshot();
                         if !audio.is_empty() {
                             let result = rt.block_on(async {
@@ -74,7 +78,7 @@ impl VoicePipeline {
                                 if let Some(ref cb) = *on_transcript.lock().unwrap() {
                                     cb(Transcript {
                                         text: transcript.text,
-                                        is_final: false,
+                                        _is_final: false,
                                     });
                                 }
                             }
@@ -91,7 +95,7 @@ impl VoicePipeline {
                             if let Some(ref cb) = *on_transcript.lock().unwrap() {
                                 cb(Transcript {
                                     text: transcript.text,
-                                    is_final: true,
+                                    _is_final: true,
                                 });
                             }
                         }
@@ -106,6 +110,7 @@ impl VoicePipeline {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn stop(&self) -> anyhow::Result<()> {
         self.running.store(false, Ordering::SeqCst);
         self.hotkey.lock().unwrap().unregister()

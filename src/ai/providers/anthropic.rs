@@ -1,10 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use eventsource_stream::Eventsource;
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
-use crate::ai::providers::{LlmMessage, LlmProvider, LlmRequest, LlmResponse, LlmStream};
+use crate::ai::providers::{LlmProvider, LlmRequest, LlmResponse, LlmStream};
 
 #[derive(Serialize)]
 struct MessagesRequest {

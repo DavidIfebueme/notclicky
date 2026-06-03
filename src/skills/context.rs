@@ -53,14 +53,17 @@ impl SkillContext {
         parts.join("\n\n")
     }
 
+    #[allow(dead_code)]
     pub fn get_skill(&self, name: &str) -> Option<&Skill> {
         self.loader.get(name)
     }
 
+    #[allow(dead_code)]
     pub fn list_skills(&self) -> Vec<&Skill> {
         self.loader.list()
     }
 
+    #[allow(dead_code)]
     pub fn get_suggestions(&self, window_title: &str) -> Vec<crate::skills::suggestion::Suggestion> {
         if let Some(engine) = &self.suggestion_engine {
             engine.suggest_for_window(window_title)
@@ -73,7 +76,6 @@ impl SkillContext {
         let lower = window_title.to_lowercase();
         let mut relevant = Vec::new();
 
-        let all_tags: Vec<String> = self.loader.list().iter().flat_map(|s| s.tags.clone()).collect();
         for skill in self.loader.list() {
             for tag in &skill.tags {
                 if lower.contains(&tag.to_lowercase()) {

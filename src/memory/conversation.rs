@@ -30,14 +30,17 @@ impl ConversationHistory {
         self.compact_if_needed();
     }
 
+    #[allow(dead_code)]
     pub fn exchanges(&self) -> &[Exchange] {
         &self.exchanges
     }
 
+    #[allow(dead_code)]
     pub fn archive(&self) -> &str {
         &self.archive
     }
 
+    #[allow(dead_code)]
     pub fn to_prompt_context(&self) -> String {
         let mut parts = Vec::new();
 
@@ -97,11 +100,13 @@ impl PersistentMemory {
         &self.content
     }
 
+    #[allow(dead_code)]
     pub fn set(&mut self, content: String) -> Result<()> {
         self.content = content;
         self.save()
     }
 
+    #[allow(dead_code)]
     pub fn append(&mut self, text: &str) -> Result<()> {
         if !self.content.is_empty() {
             self.content.push('\n');
@@ -110,6 +115,7 @@ impl PersistentMemory {
         self.save()
     }
 
+    #[allow(dead_code)]
     pub fn save(&self) -> Result<()> {
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent)?;

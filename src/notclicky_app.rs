@@ -15,7 +15,7 @@ pub struct NotClickyApp {
     pub tts: Arc<tokio::sync::Mutex<Box<dyn TtsProvider>>>,
     pub screen: Arc<tokio::sync::Mutex<Box<dyn ScreenCapture>>>,
     pub config: AppConfig,
-    pub secrets: Secrets,
+    pub _secrets: Secrets,
 }
 
 impl NotClickyApp {
@@ -33,7 +33,7 @@ impl NotClickyApp {
             tts: Arc::new(tokio::sync::Mutex::new(tts)),
             screen: Arc::new(tokio::sync::Mutex::new(screen)),
             config,
-            secrets,
+            _secrets: secrets,
         }
     }
 
@@ -43,7 +43,7 @@ impl NotClickyApp {
             screen: self.screen.clone(),
             tts: self.tts.clone(),
             llm: self.llm.clone(),
-            auth_token: self.config.bridge.token.clone(),
+            _auth_token: self.config.bridge.token.clone(),
             event_tx: tokio::sync::broadcast::channel(256).0,
         };
 

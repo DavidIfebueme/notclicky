@@ -95,6 +95,7 @@ pub fn setup_with_app(app: &adw::Application, nc_app: &NotClickyApp) {
     });
 }
 
+#[allow(dead_code)]
 pub fn setup(app: &adw::Application) {
     let config = crate::app::load().unwrap_or_default();
     let secrets = crate::app::Secrets::load().unwrap_or_else(|_| {

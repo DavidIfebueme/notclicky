@@ -268,18 +268,15 @@ impl X11Overlay {
                     }
                     OverlayCommand::ShowWaveform(rms) => {
                         let mut s = state_clone2.borrow_mut();
-                        let bars = if let Some(ref mut wf) = s.waveform {
+                        if let Some(ref mut wf) = s.waveform {
                             wf.bars.push(rms);
                             if wf.bars.len() > 32 {
                                 wf.bars.remove(0);
                             }
                             wf.rms = rms;
-                            wf.bars.clone()
                         } else {
-                            let bars = vec![rms; 1];
-                            s.waveform = Some(WaveformState { rms, bars: bars.clone() });
-                            bars
-                        };
+                            s.waveform = Some(WaveformState { rms, bars: vec![rms; 1] });
+                        }
                         drop(s);
                         window_clone.set_visible(true);
                         window_clone.present();
@@ -337,6 +334,7 @@ impl X11Overlay {
         Ok(Self { tx })
     }
 
+    #[allow(dead_code)]
     pub fn send(&self, cmd: OverlayCommand) -> Result<()> {
         self.tx.send(cmd)?;
         Ok(())

@@ -1,18 +1,20 @@
 use gtk4::prelude::*;
 use gtk4::{Box, Label, ListBox, Orientation};
-use libadwaita as adw;
 
+#[allow(dead_code)]
 pub struct ChatMessage {
     pub role: String,
     pub content: String,
 }
 
+#[allow(dead_code)]
 pub struct ChatWidget {
     messages_list: ListBox,
     messages: Vec<ChatMessage>,
 }
 
 impl ChatWidget {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         let messages_list = ListBox::new();
         messages_list.add_css_class("rich-list");
@@ -24,10 +26,12 @@ impl ChatWidget {
         }
     }
 
+    #[allow(dead_code)]
     pub fn widget(&self) -> &ListBox {
         &self.messages_list
     }
 
+    #[allow(dead_code)]
     pub fn add_message(&mut self, role: &str, content: &str) {
         let row = gtk4::ListBoxRow::new();
         row.set_selectable(false);
@@ -62,16 +66,19 @@ impl ChatWidget {
         });
     }
 
+    #[allow(dead_code)]
     pub fn update_last_message(&mut self, content: &str) {
         if let Some(last) = self.messages.last_mut() {
             last.content = content.to_string();
         }
     }
 
+    #[allow(dead_code)]
     pub fn messages(&self) -> &[ChatMessage] {
         &self.messages
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.messages.clear();
         while let Some(row) = self.messages_list.last_child() {

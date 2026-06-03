@@ -1,9 +1,11 @@
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum PointType {
     Point,
     Type,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParsedPoint {
     pub point_type: PointType,
@@ -12,6 +14,7 @@ pub struct ParsedPoint {
     pub label: String,
 }
 
+#[allow(dead_code)]
 pub fn parse_points(text: &str) -> Vec<ParsedPoint> {
     let mut results = Vec::new();
     let mut pos = 0;
@@ -34,6 +37,7 @@ pub fn parse_points(text: &str) -> Vec<ParsedPoint> {
     results
 }
 
+#[allow(dead_code)]
 fn parse_point_content(content: &str) -> Option<ParsedPoint> {
     let (type_str, rest) = content.split_once(':')?;
     let point_type = match type_str.to_uppercase().as_str() {

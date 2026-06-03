@@ -51,14 +51,14 @@ impl AgentSession {
 
 #[derive(Debug, Clone)]
 pub struct AgentEvent {
-    pub session_id: String,
-    pub kind: AgentEventKind,
+    pub _session_id: String,
+    pub _kind: AgentEventKind,
 }
 
 #[derive(Debug, Clone)]
 pub enum AgentEventKind {
-    Output { delta: String },
-    StatusChanged { status: AgentStatus },
+    Output { _delta: String },
+    StatusChanged { _status: AgentStatus },
     Done,
-    Failed { error: String },
+    Failed { _error: String },
 }

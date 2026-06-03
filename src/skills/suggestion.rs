@@ -62,6 +62,7 @@ impl SuggestionEngine {
         })
     }
 
+    #[allow(dead_code)]
     pub fn get_default_suggestions(&self) -> &[Suggestion] {
         &self.rules.default_suggestions
     }
@@ -83,6 +84,7 @@ impl SuggestionEngine {
         suggestions
     }
 
+    #[allow(dead_code)]
     pub fn suggest_for_app(&self, app_name: &str) -> Vec<Suggestion> {
         self.suggest_for_window(app_name)
     }

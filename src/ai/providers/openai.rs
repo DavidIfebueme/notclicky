@@ -4,13 +4,13 @@ use async_trait::async_trait;
 use crate::ai::providers::LlmProvider;
 
 pub struct OpenAiProvider {
-    api_key: String,
-    model: String,
+    _api_key: String,
+    _model: String,
 }
 
 impl OpenAiProvider {
     pub fn new(api_key: String, model: String) -> Self {
-        Self { api_key, model }
+        Self { _api_key: api_key, _model: model }
     }
 }
 

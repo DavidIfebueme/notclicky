@@ -49,6 +49,7 @@ impl VoiceAssistant {
         }
     }
 
+    #[allow(dead_code)]
     pub fn set_on_transcript(&self, cb: TranscriptCallback) {
         *self.on_transcript.lock().unwrap() = Some(cb);
     }
@@ -98,7 +99,7 @@ impl VoiceAssistant {
                             if let Some(ref cb) = *on_transcript.lock().unwrap() {
                                 cb(Transcript {
                                     text: transcript.text.clone(),
-                                    is_final: true,
+                                    _is_final: true,
                                 });
                             }
 
@@ -127,6 +128,7 @@ impl VoiceAssistant {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn stop(&self) -> anyhow::Result<()> {
         self.running.store(false, Ordering::SeqCst);
         self.hotkey.lock().unwrap().unregister()

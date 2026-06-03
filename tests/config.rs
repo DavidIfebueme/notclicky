@@ -30,7 +30,7 @@ backend = "x11"
     assert_eq!(config.llm.provider, "openai-compatible");
     assert_eq!(config.llm.base_url, "https://api.zai.com/v1");
     assert_eq!(config.llm.model, "glm-4");
-    assert_eq!(config.llm.max_tokens, 4096);
+    assert_eq!(config.llm._max_tokens, 4096);
     assert_eq!(config.tts.provider, "edge");
     assert_eq!(config.stt.provider, "whisper-cpp");
     assert_eq!(config.stt.model, "base");

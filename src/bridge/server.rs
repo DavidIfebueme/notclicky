@@ -22,10 +22,11 @@ pub struct AppState {
     pub screen: Arc<tokio::sync::Mutex<Box<dyn ScreenCapture>>>,
     pub tts: Arc<tokio::sync::Mutex<Box<dyn TtsProvider>>>,
     pub llm: Arc<tokio::sync::Mutex<Box<dyn LlmProvider>>>,
-    pub auth_token: String,
+    pub _auth_token: String,
     pub event_tx: broadcast::Sender<Value>,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize)]
 struct HealthResponse {
     status: String,
@@ -78,7 +79,7 @@ pub async fn health(State(_state): State<AppState>) -> Json<Value> {
 }
 
 #[derive(Deserialize)]
-struct CursorRequest {
+pub struct CursorRequest {
     x: f64,
     y: f64,
     #[serde(default)]
@@ -97,7 +98,7 @@ pub async fn cursor(State(state): State<AppState>, Json(req): Json<CursorRequest
 }
 
 #[derive(Deserialize)]
-struct CursorsRequest {
+pub struct CursorsRequest {
     cursors: Vec<CursorRequest>,
 }
 
@@ -111,7 +112,7 @@ pub async fn cursors(State(state): State<AppState>, Json(req): Json<CursorsReque
 }
 
 #[derive(Deserialize)]
-struct ScribbleRequest {
+pub struct ScribbleRequest {
     points: Vec<crate::overlay::cursor::Point>,
     #[serde(default = "default_accent")]
     accent: String,
@@ -123,7 +124,7 @@ pub async fn scribble(State(state): State<AppState>, Json(req): Json<ScribbleReq
 }
 
 #[derive(Deserialize)]
-struct HighlightRequest {
+pub struct HighlightRequest {
     x: f64,
     y: f64,
     width: f64,
@@ -139,7 +140,7 @@ pub async fn highlight(State(state): State<AppState>, Json(req): Json<HighlightR
 }
 
 #[derive(Deserialize)]
-struct CaptionRequest {
+pub struct CaptionRequest {
     text: String,
     x: f64,
     y: f64,
@@ -165,7 +166,7 @@ pub async fn screenshot(State(state): State<AppState>) -> Result<Json<Value>, St
 }
 
 #[derive(Deserialize)]
-struct ClickRequest {
+pub struct ClickRequest {
     x: i32,
     y: i32,
 }
@@ -181,7 +182,7 @@ pub async fn click(Json(req): Json<ClickRequest>) -> StatusCode {
 }
 
 #[derive(Deserialize)]
-struct SpeakRequest {
+pub struct SpeakRequest {
     text: String,
 }
 
@@ -197,7 +198,7 @@ pub async fn speak(State(state): State<AppState>, Json(req): Json<SpeakRequest>)
 }
 
 #[derive(Deserialize)]
-struct NotifyRequest {
+pub struct NotifyRequest {
     title: String,
     body: String,
 }

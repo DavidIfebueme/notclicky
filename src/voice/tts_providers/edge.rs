@@ -20,6 +20,7 @@ impl EdgeTtsProvider {
         Self { voice, rate: "+0%".to_string() }
     }
 
+    #[allow(dead_code)]
     pub fn with_rate(voice: String, rate: String) -> Self {
         Self { voice, rate }
     }
@@ -54,6 +55,7 @@ impl EdgeTtsProvider {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 struct ConfigMessage {
     #[serde(rename = "X-RequestId")]

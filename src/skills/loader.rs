@@ -130,6 +130,7 @@ impl SkillLoader {
         self.skills.values().collect()
     }
 
+    #[allow(dead_code)]
     pub fn find_by_tag(&self, tag: &str) -> Vec<&Skill> {
         self.skills
             .values()
@@ -137,6 +138,7 @@ impl SkillLoader {
             .collect()
     }
 
+    #[allow(dead_code)]
     pub fn check_prerequisites(&self, skill: &Skill) -> Vec<String> {
         let mut missing = Vec::new();
 
@@ -173,6 +175,7 @@ fn parse_frontmatter(content: &str) -> Result<(SkillFrontmatter, String)> {
     Ok((frontmatter, body))
 }
 
+#[allow(dead_code)]
 fn which_command(cmd: &str) -> Option<PathBuf> {
     std::process::Command::new("which")
         .arg(cmd)

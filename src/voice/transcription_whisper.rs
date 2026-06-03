@@ -48,7 +48,7 @@ impl SttProvider for WhisperSttProvider {
         let text = self.transcribe_sync(&audio)?;
         Ok(Transcript {
             text,
-            is_final: true,
+            _is_final: true,
         })
     }
 }

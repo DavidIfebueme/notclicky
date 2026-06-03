@@ -1,9 +1,9 @@
 use gtk4::prelude::*;
 use gtk4::{Box, Label, ListBox, ListBoxRow, Orientation, ScrolledWindow, Spinner};
-use libadwaita as adw;
 
 use crate::agent::session::{AgentSession, AgentStatus};
 
+#[allow(dead_code)]
 pub struct AgentDock {
     container: Box,
     list: ListBox,
@@ -11,6 +11,7 @@ pub struct AgentDock {
 }
 
 impl AgentDock {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         let container = Box::new(Orientation::Vertical, 8);
         container.set_margin_start(8);
@@ -37,10 +38,12 @@ impl AgentDock {
         }
     }
 
+    #[allow(dead_code)]
     pub fn widget(&self) -> &gtk4::Widget {
         self.container.upcast_ref()
     }
 
+    #[allow(dead_code)]
     pub fn add_session(&self, session: &AgentSession) {
         let row = ListBoxRow::new();
         let hbox = Box::new(Orientation::Horizontal, 8);
@@ -77,6 +80,7 @@ impl AgentDock {
         self.rows.borrow_mut().push((session.id.clone(), row, label, spinner));
     }
 
+    #[allow(dead_code)]
     pub fn update_session(&self, session: &AgentSession) {
         let mut rows = self.rows.borrow_mut();
         if let Some(entry) = rows.iter_mut().find(|(id, _, _, _)| id == &session.id) {
@@ -97,6 +101,7 @@ impl AgentDock {
         }
     }
 
+    #[allow(dead_code)]
     pub fn remove_session(&self, id: &str) {
         let mut rows = self.rows.borrow_mut();
         if let Some(pos) = rows.iter().position(|(sid, _, _, _)| sid == id) {
@@ -106,6 +111,7 @@ impl AgentDock {
     }
 }
 
+#[allow(dead_code)]
 fn truncate(s: &str, max: usize) -> String {
     if s.len() <= max {
         s.to_string()

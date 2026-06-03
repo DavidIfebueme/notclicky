@@ -4,11 +4,13 @@ use futures::Stream;
 use std::pin::Pin;
 
 pub type AudioChunk = Vec<u8>;
+#[allow(dead_code)]
 pub type AudioStream = Pin<Box<dyn Stream<Item = Result<AudioChunk>> + Send>>;
 
 #[async_trait]
 pub trait TtsProvider: Send + Sync {
     async fn synthesize(&self, text: &str) -> Result<AudioChunk>;
+    #[allow(dead_code)]
     async fn synthesize_stream(
         &self,
         text_stream: Pin<Box<dyn Stream<Item = String> + Send>>,

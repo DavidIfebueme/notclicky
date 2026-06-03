@@ -60,6 +60,7 @@ impl ScreenCapture for X11Capture {
         self.capture_root(&conn, screen.root, screen.width_in_pixels, screen.height_in_pixels, true)
     }
 
+    #[allow(dead_code)]
     async fn capture_focused_window(&self) -> Result<CaptureResult> {
         let (conn, _) = self.connect()?;
         let setup = conn.setup();
@@ -127,6 +128,7 @@ fn dimensions(width: u32, height: u32) -> (u32, u32) {
     ((width as f64 * scale) as u32, (height as f64 * scale) as u32)
 }
 
+#[allow(dead_code)]
 fn get_active_window(conn: &RustConnection, root: u32) -> Result<Option<u32>> {
     let atom = conn.intern_atom(false, b"_NET_ACTIVE_WINDOW")?.reply()?;
     let prop = get_property(conn, false, root, atom.atom, AtomEnum::WINDOW, 0, 1)?.reply()?;
@@ -137,6 +139,7 @@ fn get_active_window(conn: &RustConnection, root: u32) -> Result<Option<u32>> {
     Ok(Some(win))
 }
 
+#[allow(dead_code)]
 fn get_window_name(conn: &RustConnection, win: u32) -> Option<String> {
     let atom = conn.intern_atom(false, b"_NET_WM_NAME").ok()?.reply().ok()?;
     let prop = get_property(conn, false, win, atom.atom, AtomEnum::STRING, 0, 1024).ok()?.reply().ok()?;

@@ -1,4 +1,3 @@
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,8 +22,10 @@ pub enum OverlayCommand {
     ShowCaption(String, f64, f64, String, u32),
     ShowHighlight(Rect, String, u32),
     ShowScribble(Vec<Point>, String, u32),
+    #[allow(dead_code)]
     NavigateCursor(f64, f64, String),
     ShowWaveform(f64),
+    #[allow(dead_code)]
     HideWaveform,
     Clear,
 }

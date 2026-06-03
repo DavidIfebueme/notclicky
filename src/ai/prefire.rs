@@ -1,10 +1,12 @@
 use crate::ai::providers::{LlmMessage, LlmProvider, LlmRequest};
 
+#[allow(dead_code)]
 pub struct PrefireResult {
     pub stream: crate::ai::providers::LlmStream,
     pub is_speculative: bool,
 }
 
+#[allow(dead_code)]
 pub async fn try_prefire(
     provider: &dyn LlmProvider,
     interim_text: &str,
@@ -29,6 +31,7 @@ pub async fn try_prefire(
     })
 }
 
+#[allow(dead_code)]
 pub fn compute_divergence(interim: &str, final_text: &str) -> f32 {
     if interim.is_empty() {
         return 1.0;
@@ -49,6 +52,7 @@ pub fn compute_divergence(interim: &str, final_text: &str) -> f32 {
     1.0 - (matches as f32 / min_len as f32)
 }
 
+#[allow(dead_code)]
 fn build_request(text: &str, system_prompt: &str) -> LlmRequest {
     LlmRequest {
         messages: vec![

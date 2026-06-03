@@ -9,6 +9,7 @@ pub enum OverlayBackend {
 }
 
 impl OverlayBackend {
+    #[allow(dead_code)]
     pub fn send(&self, cmd: OverlayCommand) -> Result<()> {
         match self {
             OverlayBackend::X11(o) => o.send(cmd),
@@ -16,6 +17,7 @@ impl OverlayBackend {
         }
     }
 
+    #[allow(dead_code)]
     pub fn sender(&self) -> &mpsc::Sender<OverlayCommand> {
         match self {
             OverlayBackend::X11(o) => o.sender(),

@@ -11,9 +11,10 @@ use super::session::{AgentEvent, AgentEventKind, AgentSession, AgentStatus};
 
 pub struct AgentProcess {
     child: Child,
-    session_id: String,
+    _session_id: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum OpencodeEvent {
@@ -37,7 +38,7 @@ pub struct AgentManager {
     sessions: Arc<Mutex<HashMap<String, AgentSession>>>,
     processes: Arc<Mutex<HashMap<String, AgentProcess>>>,
     event_tx: watch::Sender<Option<AgentEvent>>,
-    event_rx: watch::Receiver<Option<AgentEvent>>,
+    _event_rx: watch::Receiver<Option<AgentEvent>>,
     opencode_path: String,
     home_dir: PathBuf,
 }
@@ -50,21 +51,24 @@ impl AgentManager {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             processes: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
-            event_rx,
+            _event_rx: event_rx,
             opencode_path,
             home_dir,
         }
     }
 
+    #[allow(dead_code)]
     pub fn subscribe(&self) -> watch::Receiver<Option<AgentEvent>> {
-        self.event_rx.clone()
+        self._event_rx.clone()
     }
 
+    #[allow(dead_code)]
     pub async fn list_sessions(&self) -> Vec<AgentSession> {
         let sessions = self.sessions.lock().await;
         sessions.values().cloned().collect()
     }
 
+    #[allow(dead_code)]
     pub async fn get_session(&self, id: &str) -> Option<AgentSession> {
         let sessions = self.sessions.lock().await;
         sessions.get(id).cloned()
@@ -74,7 +78,7 @@ impl AgentManager {
         let dir = working_dir.unwrap_or_else(|| self.home_dir.display().to_string());
         self.setup_agent_home(&dir)?;
 
-        let mut session = AgentSession::new(prompt.clone(), dir.clone(), model.clone());
+        let session = AgentSession::new(prompt.clone(), dir.clone(), model.clone());
         let session_id = session.id.clone();
 
         self.sessions.lock().await.insert(session_id.clone(), session);
@@ -94,7 +98,7 @@ impl AgentManager {
         let child = cmd.spawn()?;
         let process = AgentProcess {
             child,
-            session_id: session_id.clone(),
+            _session_id: session_id.clone(),
         };
         self.processes.lock().await.insert(session_id.clone(), process);
 
@@ -186,8 +190,8 @@ impl AgentManager {
                         }
                     }
                     let _ = event_tx.send(Some(AgentEvent {
-                        session_id: session_id.clone(),
-                        kind: AgentEventKind::Output { delta },
+                        _session_id: session_id.clone(),
+                        _kind: AgentEventKind::Output { _delta: delta },
                     }));
                 }
             }
@@ -211,17 +215,17 @@ impl AgentManager {
                 }
             }
 
-            let kind = match status {
+            let _kind = match status {
                 AgentStatus::Done => {
                     play_agent_done_sound(&home_dir).await;
                     AgentEventKind::Done
                 }
-                AgentStatus::Failed => AgentEventKind::Failed { error: "Process exited with error".to_string() },
+                AgentStatus::Failed => AgentEventKind::Failed { _error: "Process exited with error".to_string() },
                 _ => AgentEventKind::Done,
             };
             let _ = event_tx.send(Some(AgentEvent {
-                session_id: session_id.clone(),
-                kind,
+                _session_id: session_id.clone(),
+                _kind,
             }));
         });
     }
@@ -232,11 +236,12 @@ impl AgentManager {
             session.status = status;
         }
         let _ = self.event_tx.send(Some(AgentEvent {
-            session_id: session_id.to_string(),
-            kind: AgentEventKind::StatusChanged { status },
+            _session_id: session_id.to_string(),
+            _kind: AgentEventKind::StatusChanged { _status: status },
         }));
     }
 
+    #[allow(dead_code)]
     pub async fn kill(&self, session_id: &str) -> Result<()> {
         let mut procs = self.processes.lock().await;
         if let Some(mut proc) = procs.remove(session_id) {

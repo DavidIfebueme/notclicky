@@ -81,10 +81,12 @@ impl WikiManager {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn get(&self, title: &str) -> Option<&WikiPage> {
         self.pages.get(&title.to_lowercase())
     }
 
+    #[allow(dead_code)]
     pub fn search(&self, query: &str) -> Vec<&WikiPage> {
         let lower = query.to_lowercase();
         self.pages
@@ -97,6 +99,7 @@ impl WikiManager {
             .collect()
     }
 
+    #[allow(dead_code)]
     pub fn create(&mut self, title: &str, content: &str, category: Option<&str>) -> Result<()> {
         let file_name = title.to_lowercase().replace(' ', "-");
         let page_path = match category {
@@ -125,6 +128,7 @@ impl WikiManager {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn update(&mut self, title: &str, content: &str) -> Result<()> {
         let page = match self.pages.get_mut(&title.to_lowercase()) {
             Some(p) => p,
@@ -137,6 +141,7 @@ impl WikiManager {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn delete(&mut self, title: &str) -> Result<()> {
         let page = match self.pages.remove(&title.to_lowercase()) {
             Some(p) => p,

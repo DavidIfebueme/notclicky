@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Json;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 
 use super::server::AppState;
@@ -263,7 +263,8 @@ async fn execute_tool(state: &AppState, tool: &str, params: &Value) -> Value {
 
 #[derive(Deserialize)]
 pub struct JsonRpcRequest {
-    pub jsonrpc: String,
+    #[serde(rename = "jsonrpc")]
+    pub _jsonrpc: String,
     pub id: Option<Value>,
     pub method: String,
     pub params: Option<Value>,

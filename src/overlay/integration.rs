@@ -1,6 +1,7 @@
 use crate::ai::point_parser;
 use crate::overlay::cursor::OverlayCommand;
 
+#[allow(dead_code)]
 pub fn process_stream_token(token: &str, overlay_tx: &std::sync::mpsc::Sender<OverlayCommand>) {
     let points = point_parser::parse_points(token);
     for p in points {
@@ -9,10 +10,12 @@ pub fn process_stream_token(token: &str, overlay_tx: &std::sync::mpsc::Sender<Ov
     }
 }
 
+#[allow(dead_code)]
 pub fn show_waveform(rms: f64, overlay_tx: &std::sync::mpsc::Sender<OverlayCommand>) {
     let _ = overlay_tx.send(OverlayCommand::ShowWaveform(rms as f64));
 }
 
+#[allow(dead_code)]
 pub fn hide_waveform(overlay_tx: &std::sync::mpsc::Sender<OverlayCommand>) {
     let _ = overlay_tx.send(OverlayCommand::HideWaveform);
 }

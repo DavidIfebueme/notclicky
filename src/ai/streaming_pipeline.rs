@@ -1,5 +1,4 @@
-use anyhow::Result;
-use futures::{Stream, StreamExt};
+use futures::Stream;
 
 use crate::ai::sentence_splitter::SentenceSplitter;
 

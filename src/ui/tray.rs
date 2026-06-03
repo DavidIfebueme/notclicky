@@ -4,6 +4,7 @@ use ksni::Tray;
 use std::sync::mpsc;
 
 enum TrayEvent {
+    Chat,
     Settings,
     Quit,
 }
@@ -23,9 +24,18 @@ impl Tray for TrayIcon {
 
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
         use ksni::MenuItem;
+        let tx_chat = self.tx.clone();
         let tx_settings = self.tx.clone();
         let tx_quit = self.tx.clone();
         vec![
+            MenuItem::Standard(ksni::menu::StandardItem {
+                label: "Chat".into(),
+                activate: Box::new(move |_: &mut TrayIcon| {
+                    let _ = tx_chat.send(TrayEvent::Chat);
+                }),
+                ..Default::default()
+            }),
+            MenuItem::Separator,
             MenuItem::Standard(ksni::menu::StandardItem {
                 label: "Settings".into(),
                 activate: Box::new(move |_: &mut TrayIcon| {
@@ -46,26 +56,29 @@ impl Tray for TrayIcon {
 }
 
 pub fn setup(app: &adw::Application) {
+    let panel_window = crate::ui::panel::build_panel(app);
     let settings_window = crate::ui::settings::build_settings_window(app);
-    let window = settings_window.upcast::<gtk4::Window>();
 
     let (tx, rx) = mpsc::channel::<TrayEvent>();
 
     let tray = TrayIcon { tx };
     ksni::TrayService::new(tray).spawn();
 
-    let win = window.clone();
+    let panel = panel_window.clone();
+    let settings = settings_window.clone();
     gtk4::glib::MainContext::default().spawn_local(async move {
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             while let Ok(event) = rx.try_recv() {
                 match event {
-                    TrayEvent::Settings => win.present(),
-                    TrayEvent::Quit => win.close(),
+                    TrayEvent::Chat => panel.present(),
+                    TrayEvent::Settings => settings.present(),
+                    TrayEvent::Quit => {
+                        panel.close();
+                        settings.close();
+                    }
                 }
             }
         }
     });
-
-    window.present();
 }

@@ -79,22 +79,20 @@ pub fn setup_with_app(app: &adw::Application, nc_app: &NotClickyApp) {
     let panel = panel_window.clone();
     let mini = mini_window.clone();
     let settings = settings_window.clone();
-    gtk4::glib::MainContext::default().spawn_local(async move {
-        loop {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            while let Ok(event) = rx.try_recv() {
-                match event {
-                    TrayEvent::Chat => panel.present(),
-                    TrayEvent::MiniChat => mini.present(),
-                    TrayEvent::Settings => settings.present(),
-                    TrayEvent::Quit => {
-                        panel.close();
-                        mini.close();
-                        settings.close();
-                    }
+    gtk4::glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+        while let Ok(event) = rx.try_recv() {
+            match event {
+                TrayEvent::Chat => panel.present(),
+                TrayEvent::MiniChat => mini.present(),
+                TrayEvent::Settings => settings.present(),
+                TrayEvent::Quit => {
+                    panel.close();
+                    mini.close();
+                    settings.close();
                 }
             }
         }
+        gtk4::glib::ControlFlow::Continue
     });
 }
 

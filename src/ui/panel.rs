@@ -58,6 +58,7 @@ pub fn build_panel(app: &adw::Application, nc_app: &NotClickyApp) -> adw::Applic
     main_layout.append(&content_area);
 
     window.set_content(Some(&main_layout));
+    window.present();
     window
 }
 

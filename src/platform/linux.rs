@@ -3,6 +3,7 @@ use anyhow::Result;
 use crate::voice::push_to_talk::GlobalHotkey;
 use crate::screen::capture::ScreenCapture;
 
+#[derive(Debug)]
 pub enum Backend {
     X11,
     Wayland,

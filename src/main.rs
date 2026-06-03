@@ -26,6 +26,7 @@ fn main() {
         });
 
         let backend = platform::linux::Backend::detect();
+        eprintln!("notclicky: detected {:?} backend", backend);
 
         let overlay = create_overlay(gtk_app, &backend);
 
@@ -57,16 +58,25 @@ fn main() {
         );
 
         nc_app.start_bridge();
+        eprintln!("notclicky: bridge server starting on port {}", config.bridge.port);
 
         let hotkey = platform::linux::create_hotkey(&backend).ok();
         let stt = create_stt(&config);
+        let has_hotkey = hotkey.is_some();
+        let has_stt = stt.is_some();
 
         if let (Some(hotkey), Some(stt)) = (hotkey, stt) {
             if let Err(e) = nc_app.start_voice(hotkey, stt) {
                 eprintln!("Voice pipeline error: {}", e);
+            } else {
+                eprintln!("notclicky: voice pipeline active (Ctrl+Alt to talk)");
             }
         } else {
-            eprintln!("Voice pipeline disabled: hotkey or STT not available");
+            eprintln!("notclicky: voice pipeline disabled — {}", match (has_hotkey, has_stt) {
+                (false, _) => "hotkey not available",
+                (_, false) => "STT model not found",
+                _ => "unavailable",
+            });
         }
 
         ui::tray::setup_with_app(gtk_app, &nc_app);

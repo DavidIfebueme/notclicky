@@ -48,7 +48,7 @@ fn main() {
         let tts = create_tts(&config, &secrets);
         let screen = create_screen_capture(&backend);
 
-        let nc_app = notclicky_app::NotClickyApp::new(
+        let mut nc_app = notclicky_app::NotClickyApp::new(
             overlay_tx,
             llm,
             tts,
@@ -64,9 +64,10 @@ fn main() {
         let stt = create_stt(&config);
         let has_hotkey = hotkey.is_some();
         let has_stt = stt.is_some();
+        let whisper_model_path = get_whisper_model_path(&config);
 
         if let (Some(hotkey), Some(stt)) = (hotkey, stt) {
-            if let Err(e) = nc_app.start_voice(hotkey, stt) {
+            if let Err(e) = nc_app.start_voice(hotkey, stt, whisper_model_path) {
                 eprintln!("Voice pipeline error: {}", e);
             } else {
                 eprintln!("notclicky: voice pipeline active (Ctrl+Alt to talk)");
@@ -79,8 +80,7 @@ fn main() {
             });
         }
 
-        ui::tray::setup_with_app(gtk_app, &nc_app);
-    });
+        ui::tray::setup_with_app(gtk_app, &nc_app);    });
 
     app.run();
 }
@@ -195,5 +195,18 @@ fn create_screen_capture(backend: &platform::linux::Backend) -> Box<dyn screen::
             }
             Box::new(NoopCapture)
         }
+    }
+}
+
+fn get_whisper_model_path(config: &app::AppConfig) -> Option<std::path::PathBuf> {
+    let model_dir = dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        .join("notclicky")
+        .join("whisper-models");
+    let model_path = model_dir.join(format!("ggml-{}.bin", config.stt.model));
+    if model_path.exists() {
+        Some(model_path)
+    } else {
+        None
     }
 }

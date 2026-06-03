@@ -58,9 +58,10 @@ impl NotClickyApp {
     }
 
     pub fn start_voice(
-        &self,
+        &mut self,
         hotkey: Box<dyn GlobalHotkey>,
         stt: Box<dyn SttProvider>,
+        whisper_model_path: Option<std::path::PathBuf>,
     ) -> Result<(), anyhow::Error> {
         let capture = crate::voice::capture::AudioCapture::new(16000);
         let resources_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources");
@@ -78,7 +79,7 @@ impl NotClickyApp {
             let _ = overlay_tx.send(OverlayCommand::ShowWaveform(rms as f64));
         }));
 
-        let assistant = crate::voice::assistant::VoiceAssistant::new(
+        let mut assistant = crate::voice::assistant::VoiceAssistant::new(
             hotkey,
             capture,
             stt,
@@ -136,6 +137,13 @@ impl NotClickyApp {
             .join("agent-home");
         let agent_manager = crate::agent::process::AgentManager::new(home_dir);
         assistant.set_agent_manager(agent_manager);
+
+        if let Some(model_path) = whisper_model_path {
+            if model_path.exists() {
+                let detector = crate::voice::wake_word::WakeWordDetector::new(model_path, 16000);
+                assistant.set_wake_word(detector);
+            }
+        }
 
         assistant.start()
     }

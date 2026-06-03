@@ -9,6 +9,7 @@ use crate::voice::capture::AudioCapture;
 use crate::voice::push_to_talk::GlobalHotkey;
 use crate::voice::transcription::{SttProvider, Transcript};
 use crate::voice::tts::TtsProvider;
+use crate::voice::wake_word::WakeWordDetector;
 
 type TranscriptCallback = Box<dyn Fn(Transcript) + Send + 'static>;
 
@@ -23,6 +24,7 @@ pub struct VoiceAssistant {
     system_prompt: String,
     running: Arc<AtomicBool>,
     on_transcript: Arc<Mutex<Option<TranscriptCallback>>>,
+    wake_word: Option<WakeWordDetector>,
 }
 
 impl VoiceAssistant {
@@ -46,7 +48,12 @@ impl VoiceAssistant {
             system_prompt,
             running: Arc::new(AtomicBool::new(false)),
             on_transcript: Arc::new(Mutex::new(None)),
+            wake_word: None,
         }
+    }
+
+    pub fn set_wake_word(&mut self, detector: WakeWordDetector) {
+        self.wake_word = Some(detector);
     }
 
     #[allow(dead_code)]
@@ -58,9 +65,15 @@ impl VoiceAssistant {
         *self.agent_manager.lock().unwrap() = Some(manager);
     }
 
-    pub fn start(&self) -> anyhow::Result<()> {
+    pub fn start(&mut self) -> anyhow::Result<()> {
         self.hotkey.lock().unwrap().register(vec!["Control", "Alt"], None)?;
         self.running.store(true, Ordering::SeqCst);
+
+        let has_wake_word = self.wake_word.is_some();
+        if has_wake_word {
+            let _ = self.capture.lock().unwrap().start();
+            eprintln!("notclicky: wake word listening enabled (say \"hey clicky\")");
+        }
 
         let running = self.running.clone();
         let hotkey = self.hotkey.clone();
@@ -73,10 +86,13 @@ impl VoiceAssistant {
         let on_transcript = self.on_transcript.clone();
         let agent_manager = self.agent_manager.clone();
         let sample_rate = capture.lock().unwrap().sample_rate();
+        let wake_word = self.wake_word.take();
 
         std::thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
             let mut was_pressed = false;
+            let mut last_wake_word_time: Option<std::time::Instant> = None;
+            let mut wake_word_check_counter: u64 = 0;
 
             while running.load(Ordering::SeqCst) {
                 let pressed = hotkey.lock().unwrap().is_pressed();
@@ -91,34 +107,44 @@ impl VoiceAssistant {
                     });
 
                     if !audio.is_empty() {
-                        let transcript_result = rt.block_on(async {
-                            stt.lock().unwrap().transcribe(&audio, sample_rate).await
-                        });
+                        let _ = process_audio(
+                            &audio, sample_rate, &stt, &llm, &tts, &system_prompt,
+                            &on_transcript, &agent_manager, screenshot.as_ref(), &rt,
+                        );
+                    }
 
-                        if let Ok(transcript) = transcript_result {
-                            if let Some(ref cb) = *on_transcript.lock().unwrap() {
-                                cb(Transcript {
-                                    text: transcript.text.clone(),
-                                    _is_final: true,
+                    was_pressed = false;
+                    if has_wake_word {
+                        let _ = capture.lock().unwrap().start();
+                    }
+                }
+
+                if !was_pressed && has_wake_word {
+                    wake_word_check_counter += 1;
+                    let in_cooldown = last_wake_word_time.map_or(false, |t| t.elapsed() < std::time::Duration::from_secs(3));
+                    if wake_word_check_counter % 100 == 0 && !in_cooldown {
+                        if let Some(ref ww) = wake_word {
+                            let snapshot = capture.lock().unwrap().snapshot();
+                            if !snapshot.is_empty() && ww.check(&snapshot) {
+                                last_wake_word_time = Some(std::time::Instant::now());
+                                let audio = capture.lock().unwrap().stop();
+                                eprintln!("notclicky: wake word triggered, processing command...");
+
+                                let screenshot = rt.block_on(async {
+                                    screen.lock().unwrap().capture_cursor_screen().await.ok()
                                 });
-                            }
 
-                            if !transcript.text.trim().is_empty() {
-                                if is_agent_request(&transcript.text) {
-                                    let agent_prompt = strip_agent_keyword(&transcript.text);
-                                    let mgr = agent_manager.lock().unwrap();
-                                    if let Some(ref mgr) = *mgr {
-                                        let _ = rt.block_on(mgr.spawn(agent_prompt, None, None));
-                                    }
-                                } else {
-                                    let _ = rt.block_on(process_response(
-                                        &llm, &tts, &system_prompt, &transcript.text, screenshot.as_ref(),
-                                    ));
+                                if !audio.is_empty() {
+                                    let _ = process_audio(
+                                        &audio, sample_rate, &stt, &llm, &tts, &system_prompt,
+                                        &on_transcript, &agent_manager, screenshot.as_ref(), &rt,
+                                    );
                                 }
+
+                                let _ = capture.lock().unwrap().start();
                             }
                         }
                     }
-                    was_pressed = false;
                 }
 
                 std::thread::sleep(std::time::Duration::from_millis(10));
@@ -133,6 +159,48 @@ impl VoiceAssistant {
         self.running.store(false, Ordering::SeqCst);
         self.hotkey.lock().unwrap().unregister()
     }
+}
+
+fn process_audio(
+    audio: &[f32],
+    sample_rate: u32,
+    stt: &Arc<Mutex<Box<dyn SttProvider>>>,
+    llm: &Arc<Mutex<Box<dyn LlmProvider>>>,
+    tts: &Arc<Mutex<Box<dyn TtsProvider>>>,
+    system_prompt: &str,
+    on_transcript: &Arc<Mutex<Option<TranscriptCallback>>>,
+    agent_manager: &Arc<Mutex<Option<AgentManager>>>,
+    screenshot: Option<&crate::screen::capture::CaptureResult>,
+    rt: &tokio::runtime::Runtime,
+) -> anyhow::Result<()> {
+    let transcript_result = rt.block_on(async {
+        stt.lock().unwrap().transcribe(audio, sample_rate).await
+    });
+
+    if let Ok(transcript) = transcript_result {
+        if let Some(ref cb) = *on_transcript.lock().unwrap() {
+            cb(Transcript {
+                text: transcript.text.clone(),
+                _is_final: true,
+            });
+        }
+
+        if !transcript.text.trim().is_empty() {
+            if is_agent_request(&transcript.text) {
+                let agent_prompt = strip_agent_keyword(&transcript.text);
+                let mgr = agent_manager.lock().unwrap();
+                if let Some(ref mgr) = *mgr {
+                    let _ = rt.block_on(mgr.spawn(agent_prompt, None, None));
+                }
+            } else {
+                let _ = rt.block_on(process_response(
+                    llm, tts, system_prompt, &transcript.text, screenshot,
+                ));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 async fn process_response(

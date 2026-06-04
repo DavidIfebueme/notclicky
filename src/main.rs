@@ -149,7 +149,12 @@ fn create_tts(config: &app::AppConfig, secrets: &app::Secrets) -> Box<dyn voice:
             Box::new(voice::tts_providers::cartesia::CartesiaProvider::new(key))
         }
         _ => {
-            Box::new(voice::tts_providers::edge::EdgeTtsProvider::new(config.tts.voice_id.clone()))
+            let voice = if config.tts.voice_id.is_empty() {
+                "en-US-AriaNeural".to_string()
+            } else {
+                config.tts.voice_id.clone()
+            };
+            Box::new(voice::tts_providers::edge::EdgeTtsProvider::new(voice))
         }
     }
 }

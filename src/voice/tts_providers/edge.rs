@@ -5,9 +5,11 @@ use rand::Rng;
 use serde::Deserialize;
 use std::pin::Pin;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 use crate::voice::tts::{AudioChunk, AudioStream, TtsProvider};
 
+const TRUSTED_CLIENT_TOKEN: &str = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 const EDGE_TTS_URL: &str = "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1";
 
 pub struct EdgeTtsProvider {
@@ -23,10 +25,6 @@ impl EdgeTtsProvider {
     #[allow(dead_code)]
     pub fn with_rate(voice: String, rate: String) -> Self {
         Self { voice, rate }
-    }
-
-    fn token(&self) -> String {
-        std::env::var("EDGE_TTS_TOKEN").unwrap_or_else(|_| String::new())
     }
 
     fn connection_id() -> String {
@@ -66,10 +64,17 @@ struct ConfigMessage {
 impl TtsProvider for EdgeTtsProvider {
     async fn synthesize(&self, text: &str) -> Result<AudioChunk> {
         let conn_id = Self::connection_id();
-        let url = format!("{}?TrustedClientToken={}&ConnectionId={}", EDGE_TTS_URL, self.token(), conn_id);
+        let url = format!("{}?TrustedClientToken={}&ConnectionId={}", EDGE_TTS_URL, TRUSTED_CLIENT_TOKEN, conn_id);
         let request_id = Self::connection_id();
 
-        let (mut ws_stream, _) = connect_async(&url).await?;
+        let mut req = url.into_client_request()?;
+        let headers = req.headers_mut();
+        headers.insert("Origin", "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold".parse()?);
+        headers.insert("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0".parse()?);
+        headers.insert("Pragma", "no-cache".parse()?);
+        headers.insert("Cache-Control", "no-cache".parse()?);
+
+        let (mut ws_stream, _) = connect_async(req).await?;
 
         let config_msg = format!(
             "X-Timestamp:{}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{{\"context\":{{\"synthesis\":{{\"audio\":{{\"metadataoptions\":{{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"true\"}},\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}}}}}",

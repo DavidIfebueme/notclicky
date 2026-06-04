@@ -139,8 +139,8 @@ impl NotClickyApp {
 
         if let Some(ref deepgram_key) = self._secrets.deepgram_api_key {
             if !deepgram_key.is_empty() {
-                let detector = crate::voice::wake_word::WakeWordDetector::new(deepgram_key.clone(), 16000);
-                assistant.set_wake_word(detector);
+                assistant.set_deepgram_api_key(deepgram_key.clone());
+                assistant.set_wake_word_enabled(true);
             }
         }
 

@@ -1,4 +1,6 @@
+pub mod audio_player;
 pub mod capture;
+pub mod filler;
 pub mod pipeline;
 pub mod push_to_talk;
 pub mod resample;
@@ -7,5 +9,4 @@ pub mod transcription_deepgram;
 pub mod transcription_whisper;
 pub mod tts;
 pub mod tts_providers;
-pub mod wake_word;
 pub mod assistant;

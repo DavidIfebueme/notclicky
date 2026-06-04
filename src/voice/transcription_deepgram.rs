@@ -1,12 +1,37 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use futures::{SinkExt, StreamExt};
 use reqwest::Client;
+use serde::Deserialize;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use super::transcription::{SttProvider, Transcript};
 
 pub struct DeepgramSttProvider {
     api_key: String,
     client: Client,
+}
+
+#[derive(Deserialize, Debug)]
+struct DeepgramResult {
+    channel: DeepgramChannel,
+}
+
+#[derive(Deserialize, Debug)]
+struct DeepgramChannel {
+    alternatives: Vec<DeepgramAlternative>,
+}
+
+#[derive(Deserialize, Debug)]
+struct DeepgramAlternative {
+    transcript: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct DeepgramMessage {
+    #[serde(rename = "type")]
+    msg_type: String,
+    channel: Option<DeepgramResult>,
 }
 
 impl DeepgramSttProvider {
@@ -18,20 +43,22 @@ impl DeepgramSttProvider {
         Self { api_key, client }
     }
 
+    #[allow(dead_code)]
+    pub fn api_key(&self) -> &str {
+        &self.api_key
+    }
+
     pub fn transcribe_sync(&self, audio: &[f32], sample_rate: u32) -> Result<String> {
         let wav_data = encode_wav(audio, sample_rate);
-
         let rt = tokio::runtime::Runtime::new()?;
         let text = rt.block_on(async {
             self.transcribe_bytes(&wav_data).await
         })?;
-
         Ok(text)
     }
 
     async fn transcribe_bytes(&self, audio_data: &[u8]) -> Result<String> {
         let url = "https://api.deepgram.com/v1/listen?model=nova-2&language=en&punctuate=true&smart_format=true";
-
         let resp = self.client
             .post(url)
             .header("Authorization", format!("Token {}", self.api_key))
@@ -52,7 +79,6 @@ impl DeepgramSttProvider {
             .unwrap_or("")
             .trim()
             .to_string();
-
         Ok(text)
     }
 }
@@ -62,12 +88,117 @@ impl SttProvider for DeepgramSttProvider {
     async fn transcribe(&self, audio: &[f32], sample_rate: u32) -> Result<Transcript> {
         let wav_data = encode_wav(audio, sample_rate);
         let text = self.transcribe_bytes(&wav_data).await?;
-
         Ok(Transcript {
             text,
             _is_final: true,
         })
     }
+}
+
+pub struct DeepgramStreamingSession {
+    ws_stream: futures::stream::SplitStream<
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
+    >,
+    ws_sink: futures::stream::SplitSink<
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
+        Message,
+    >,
+}
+
+impl DeepgramStreamingSession {
+    pub async fn connect(api_key: &str) -> Result<Self> {
+        let url = format!(
+            "wss://api.deepgram.com/v1/listen?model=nova-2&language=en&punctuate=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=1000"
+        );
+
+        let mut request = tokio_tungstenite::tungstenite::client::IntoClientRequest::into_client_request(&url)?;
+        let headers = request.headers_mut();
+        headers.insert("Authorization", format!("Token {}", api_key).parse()?);
+
+        let (ws, _) = connect_async(request).await?;
+        let (ws_sink, ws_stream) = ws.split();
+
+        Ok(Self { ws_stream, ws_sink })
+    }
+
+    pub async fn send_audio(&mut self, audio: &[f32]) -> Result<()> {
+        let pcm = encode_pcm_i16(audio);
+        self.ws_sink.send(Message::Binary(pcm.into())).await?;
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub async fn send_raw_audio(&mut self, data: &[u8]) -> Result<()> {
+        self.ws_sink.send(Message::Binary(data.to_vec().into())).await?;
+        Ok(())
+    }
+
+    pub async fn finalize(&mut self) -> Result<()> {
+        self.ws_sink.send(Message::Text("{\"type\": \"Finalize\"}".into())).await?;
+        Ok(())
+    }
+
+    pub async fn close(&mut self) -> Result<()> {
+        self.ws_sink.send(Message::Close(None)).await?;
+        Ok(())
+    }
+
+    pub async fn next_transcript(&mut self) -> Option<Result<StreamingTranscript>> {
+        while let Some(msg) = self.ws_stream.next().await {
+            match msg {
+                Ok(Message::Text(text)) => {
+                    if let Ok(parsed) = serde_json::from_str::<DeepgramMessage>(&text) {
+                        match parsed.msg_type.as_str() {
+                            "Results" | "Transcript" => {
+                                if let Some(channel) = parsed.channel {
+                                    if let Some(alt) = channel.channel.alternatives.first() {
+                                        let is_final = parsed.msg_type == "Results";
+                                        return Some(Ok(StreamingTranscript {
+                                            text: alt.transcript.trim().to_string(),
+                                            is_final,
+                                            is_utterance_end: false,
+                                        }));
+                                    }
+                                }
+                            }
+                            "UtteranceEnd" => {
+                                return Some(Ok(StreamingTranscript {
+                                    text: String::new(),
+                                    is_final: true,
+                                    is_utterance_end: true,
+                                }));
+                            }
+                            _ => continue,
+                        }
+                    }
+                }
+                Ok(Message::Close(_)) => return None,
+                Err(e) => return Some(Err(anyhow::anyhow!("WebSocket error: {}", e))),
+                _ => continue,
+            }
+        }
+        None
+    }
+}
+
+pub struct StreamingTranscript {
+    pub text: String,
+    pub is_final: bool,
+    pub is_utterance_end: bool,
+}
+
+fn encode_pcm_i16(samples: &[f32]) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(samples.len() * 2);
+    for &sample in samples {
+        let clamped = sample.clamp(-1.0, 1.0);
+        let val = (clamped * 32767.0) as i16;
+        buf.extend_from_slice(&val.to_le_bytes());
+    }
+    buf
 }
 
 fn encode_wav(samples: &[f32], sample_rate: u32) -> Vec<u8> {

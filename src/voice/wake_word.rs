@@ -1,28 +1,25 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use crate::voice::transcription_whisper::WhisperSttProvider;
-use whisper_rs::WhisperContext;
+use crate::voice::transcription_deepgram::DeepgramSttProvider;
 
 const WAKE_WORDS: &[&str] = &["hey clicky", "clicky", "hey clikey", "notclicky"];
 const LISTEN_CHUNK_SECS: f64 = 3.0;
 const RMS_THRESHOLD: f32 = 0.02;
 
 pub struct WakeWordDetector {
-    whisper: Arc<Mutex<WhisperSttProvider>>,
+    deepgram: Arc<Mutex<DeepgramSttProvider>>,
     sample_rate: u32,
     enabled: Arc<AtomicBool>,
-    ctx_cache: Arc<Mutex<Option<Arc<WhisperContext>>>>,
 }
 
 impl WakeWordDetector {
-    pub fn new(model_path: std::path::PathBuf, sample_rate: u32) -> Self {
-        let whisper = WhisperSttProvider::new(model_path);
+    pub fn new(api_key: String, sample_rate: u32) -> Self {
+        let deepgram = DeepgramSttProvider::new(api_key);
         Self {
-            whisper: Arc::new(Mutex::new(whisper)),
+            deepgram: Arc::new(Mutex::new(deepgram)),
             sample_rate,
             enabled: Arc::new(AtomicBool::new(true)),
-            ctx_cache: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -43,23 +40,12 @@ impl WakeWordDetector {
             audio
         };
 
-        let ctx = {
-            let mut cache = self.ctx_cache.lock().unwrap();
-            if cache.is_none() {
-                let whisper = self.whisper.lock().unwrap();
-                match whisper.create_context() {
-                    Ok(ctx) => { *cache = Some(ctx); }
-                    Err(_) => return false,
-                }
-            }
-            cache.clone().unwrap()
-        };
-
-        match self.whisper.lock().unwrap().transcribe_sync_with_ctx(&ctx, audio_chunk) {
+        let deepgram = self.deepgram.lock().unwrap();
+        match deepgram.transcribe_sync(audio_chunk, self.sample_rate) {
             Ok(text) => {
                 let lower = text.to_lowercase();
                 let trimmed = lower.trim();
-                if trimmed.is_empty() || trimmed == "[blanks_audio]" || trimmed.contains("blank_audio") {
+                if trimmed.is_empty() {
                     return false;
                 }
                 eprintln!("notclicky: heard \"{}\"", trimmed);
@@ -71,7 +57,10 @@ impl WakeWordDetector {
                 }
                 false
             }
-            Err(_) => false,
+            Err(e) => {
+                eprintln!("notclicky: deepgram stt error: {}", e);
+                false
+            }
         }
     }
 

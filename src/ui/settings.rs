@@ -9,7 +9,7 @@ use crate::app::{AppConfig, Secrets};
 pub fn build_settings_window(app: &adw::Application) -> adw::PreferencesWindow {
     let config = crate::app::load().unwrap_or_default();
     let secrets = Rc::new(RefCell::new(Secrets::load().unwrap_or_else(|_| {
-        Secrets { values: std::collections::HashMap::new() }
+        Secrets { values: std::collections::HashMap::new(), deepgram_api_key: None }
     })));
 
     let window = adw::PreferencesWindow::builder()

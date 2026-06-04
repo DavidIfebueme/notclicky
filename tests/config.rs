@@ -14,7 +14,7 @@ provider = "edge"
 voice_id = ""
 
 [stt]
-provider = "whisper-cpp"
+provider = "deepgram"
 model = "base"
 language = "en"
 
@@ -32,7 +32,7 @@ backend = "x11"
     assert_eq!(config.llm.model, "glm-4");
     assert_eq!(config.llm._max_tokens, 4096);
     assert_eq!(config.tts.provider, "edge");
-    assert_eq!(config.stt.provider, "whisper-cpp");
+    assert_eq!(config.stt.provider, "deepgram");
     assert_eq!(config.stt.model, "base");
     assert_eq!(config.stt.language, "en");
     assert_eq!(config.bridge.port, 32123);
@@ -44,7 +44,7 @@ fn default_config_values() {
     let config = AppConfig::default();
     assert_eq!(config.llm.provider, "openai-compatible");
     assert_eq!(config.tts.provider, "edge");
-    assert_eq!(config.stt.provider, "whisper-cpp");
+    assert_eq!(config.stt.provider, "deepgram");
     assert_eq!(config.bridge.port, 32123);
     assert_eq!(config.overlay.backend, "x11");
 }
@@ -61,6 +61,6 @@ model = "claude-sonnet-4-20250514"
     assert_eq!(config.llm.provider, "anthropic");
     assert_eq!(config.llm.model, "claude-sonnet-4-20250514");
     assert_eq!(config.tts.provider, "edge");
-    assert_eq!(config.stt.provider, "whisper-cpp");
+    assert_eq!(config.stt.provider, "deepgram");
     assert_eq!(config.bridge.port, 32123);
 }

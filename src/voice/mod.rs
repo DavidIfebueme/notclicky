@@ -3,6 +3,7 @@ pub mod pipeline;
 pub mod push_to_talk;
 pub mod resample;
 pub mod transcription;
+pub mod transcription_deepgram;
 pub mod transcription_whisper;
 pub mod tts;
 pub mod tts_providers;

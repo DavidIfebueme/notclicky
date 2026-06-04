@@ -22,7 +22,7 @@ fn main() {
     app.connect_activate(|gtk_app| {
         let config = app::load().unwrap_or_default();
         let secrets = app::Secrets::load().unwrap_or_else(|_| {
-            app::Secrets { values: std::collections::HashMap::new() }
+            app::Secrets { values: std::collections::HashMap::new(), deepgram_api_key: None }
         });
 
         let backend = platform::linux::Backend::detect();
@@ -47,6 +47,10 @@ fn main() {
         let llm = create_llm(&config, &secrets);
         let tts = create_tts(&config, &secrets);
         let screen = create_screen_capture(&backend);
+        let hotkey = platform::linux::create_hotkey(&backend).ok();
+        let stt = create_stt(&config, &secrets);
+        let has_hotkey = hotkey.is_some();
+        let has_stt = stt.is_some();
 
         let mut nc_app = notclicky_app::NotClickyApp::new(
             overlay_tx,
@@ -60,14 +64,8 @@ fn main() {
         nc_app.start_bridge();
         eprintln!("notclicky: bridge server starting on port {}", config.bridge.port);
 
-        let hotkey = platform::linux::create_hotkey(&backend).ok();
-        let stt = create_stt(&config);
-        let has_hotkey = hotkey.is_some();
-        let has_stt = stt.is_some();
-        let whisper_model_path = get_whisper_model_path(&config);
-
         if let (Some(hotkey), Some(stt)) = (hotkey, stt) {
-            if let Err(e) = nc_app.start_voice(hotkey, stt, whisper_model_path) {
+            if let Err(e) = nc_app.start_voice(hotkey, stt) {
                 eprintln!("Voice pipeline error: {}", e);
             } else {
                 eprintln!("notclicky: voice pipeline active (Ctrl+Alt to talk)");
@@ -75,7 +73,7 @@ fn main() {
         } else {
             eprintln!("notclicky: voice pipeline disabled — {}", match (has_hotkey, has_stt) {
                 (false, _) => "hotkey not available",
-                (_, false) => "STT model not found",
+                (_, false) => "STT provider not available",
                 _ => "unavailable",
             });
         }
@@ -156,8 +154,17 @@ fn create_tts(config: &app::AppConfig, secrets: &app::Secrets) -> Box<dyn voice:
     }
 }
 
-fn create_stt(config: &app::AppConfig) -> Option<Box<dyn voice::transcription::SttProvider>> {
+fn create_stt(config: &app::AppConfig, secrets: &app::Secrets) -> Option<Box<dyn voice::transcription::SttProvider>> {
     match config.stt.provider.as_str() {
+        "deepgram" => {
+            let key = secrets.get("DEEPGRAM_API_KEY").unwrap_or("").to_string();
+            if key.is_empty() {
+                eprintln!("Deepgram STT: no API key found. Set DEEPGRAM_API_KEY in secrets.env");
+                None
+            } else {
+                Some(Box::new(voice::transcription_deepgram::DeepgramSttProvider::new(key)))
+            }
+        }
         "whisper-cpp" => {
             let model_dir = dirs::data_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
@@ -198,15 +205,4 @@ fn create_screen_capture(backend: &platform::linux::Backend) -> Box<dyn screen::
     }
 }
 
-fn get_whisper_model_path(config: &app::AppConfig) -> Option<std::path::PathBuf> {
-    let model_dir = dirs::data_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
-        .join("notclicky")
-        .join("whisper-models");
-    let model_path = model_dir.join(format!("ggml-{}.bin", config.stt.model));
-    if model_path.exists() {
-        Some(model_path)
-    } else {
-        None
-    }
-}
+

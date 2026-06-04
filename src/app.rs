@@ -126,7 +126,7 @@ fn default_llm_provider() -> String { "openai-compatible".into() }
 fn default_llm_model() -> String { "glm-4-plus".into() }
 fn default_max_tokens() -> u32 { 4096 }
 fn default_tts_provider() -> String { "edge".into() }
-fn default_stt_provider() -> String { "whisper-cpp".into() }
+fn default_stt_provider() -> String { "deepgram".into() }
 fn default_stt_model() -> String { "base".into() }
 fn default_stt_language() -> String { "en".into() }
 fn default_bridge_port() -> u16 { 32123 }
@@ -152,6 +152,7 @@ pub fn load() -> Result<AppConfig> {
 
 pub struct Secrets {
     pub values: HashMap<String, String>,
+    pub deepgram_api_key: Option<String>,
 }
 
 const SECRET_KEYS: &[&str] = &[
@@ -181,7 +182,9 @@ impl Secrets {
             }
         }
 
-        Ok(Self { values })
+        let deepgram_api_key = values.get("DEEPGRAM_API_KEY").cloned();
+
+        Ok(Self { values, deepgram_api_key })
     }
 
     pub fn get(&self, key: &str) -> Option<&str> {

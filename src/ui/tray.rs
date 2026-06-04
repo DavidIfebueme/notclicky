@@ -99,7 +99,7 @@ pub fn setup_with_app(app: &adw::Application, nc_app: &NotClickyApp) {
 pub fn setup(app: &adw::Application) {
     let config = crate::app::load().unwrap_or_default();
     let secrets = crate::app::Secrets::load().unwrap_or_else(|_| {
-        crate::app::Secrets { values: std::collections::HashMap::new() }
+        crate::app::Secrets { values: std::collections::HashMap::new(), deepgram_api_key: None }
     });
     let (overlay_tx, _) = mpsc::channel();
     let llm = Box::new(crate::ai::providers::openai_compat::OpenAiCompatProvider::new(

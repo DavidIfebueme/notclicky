@@ -57,6 +57,14 @@ impl AudioCapture {
         self.buffer.lock().unwrap().clone()
     }
 
+    pub fn trim_to(&self, max_len: usize) {
+        let mut buf = self.buffer.lock().unwrap();
+        if buf.len() > max_len {
+            let drain_count = buf.len() - max_len;
+            buf.drain(0..drain_count);
+        }
+    }
+
     #[allow(dead_code)]
     pub fn is_capturing(&self) -> bool {
         self.capturing.load(Ordering::SeqCst)

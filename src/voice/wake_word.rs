@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::voice::transcription_deepgram::DeepgramSttProvider;
 
-const WAKE_WORDS: &[&str] = &["hey clicky", "clicky", "hey clikey", "notclicky"];
+const WAKE_WORDS: &[&str] = &["hey clicky", "clicky", "hey clikey", "not clicky", "notclicky"];
 const LISTEN_CHUNK_SECS: f64 = 3.0;
 const RMS_THRESHOLD: f32 = 0.02;
 
@@ -40,8 +40,10 @@ impl WakeWordDetector {
             audio
         };
 
+        let downsampled = downsample(audio_chunk, self.sample_rate, 8000);
+
         let deepgram = self.deepgram.lock().unwrap();
-        match deepgram.transcribe_sync(audio_chunk, self.sample_rate) {
+        match deepgram.transcribe_sync(&downsampled, 8000) {
             Ok(text) => {
                 let lower = text.to_lowercase();
                 let trimmed = lower.trim();
@@ -73,6 +75,22 @@ impl WakeWordDetector {
     pub fn is_enabled(&self) -> bool {
         self.enabled.load(Ordering::SeqCst)
     }
+}
+
+fn downsample(samples: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
+    if from_rate == to_rate {
+        return samples.to_vec();
+    }
+    let ratio = from_rate as f64 / to_rate as f64;
+    let new_len = (samples.len() as f64 / ratio) as usize;
+    let mut out = Vec::with_capacity(new_len);
+    for i in 0..new_len {
+        let src_idx = (i as f64 * ratio) as usize;
+        if src_idx < samples.len() {
+            out.push(samples[src_idx]);
+        }
+    }
+    out
 }
 
 fn compute_rms(samples: &[f32]) -> f32 {

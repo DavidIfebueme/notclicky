@@ -122,10 +122,22 @@ impl VoiceAssistant {
                 if !was_pressed && has_wake_word {
                     wake_word_check_counter += 1;
                     let in_cooldown = last_wake_word_time.map_or(false, |t| t.elapsed() < std::time::Duration::from_secs(3));
-                    if wake_word_check_counter % 150 == 0 && !in_cooldown {
+                    if wake_word_check_counter % 200 == 0 && !in_cooldown {
                         if let Some(ref ww) = wake_word {
-                            let snapshot = capture.lock().unwrap().snapshot();
-                            if !snapshot.is_empty() && ww.check(&snapshot) {
+                            let chunk_len = (sample_rate as f64 * 3.0) as usize;
+                            let recent = {
+                                let cap = capture.lock().unwrap();
+                                let buf = cap.snapshot();
+                                if buf.len() > chunk_len * 2 {
+                                    cap.trim_to(chunk_len);
+                                }
+                                if buf.len() > chunk_len {
+                                    buf[buf.len() - chunk_len..].to_vec()
+                                } else {
+                                    buf
+                                }
+                            };
+                            if !recent.is_empty() && ww.check(&recent) {
                                 last_wake_word_time = Some(std::time::Instant::now());
                                 let audio = capture.lock().unwrap().stop();
                                 eprintln!("notclicky: wake word triggered, processing command...");

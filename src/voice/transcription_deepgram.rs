@@ -11,7 +11,10 @@ pub struct DeepgramSttProvider {
 
 impl DeepgramSttProvider {
     pub fn new(api_key: String) -> Self {
-        let client = Client::new();
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .unwrap_or_else(|_| Client::new());
         Self { api_key, client }
     }
 
@@ -27,7 +30,7 @@ impl DeepgramSttProvider {
     }
 
     async fn transcribe_bytes(&self, audio_data: &[u8]) -> Result<String> {
-        let url = "https://api.deepgram.com/v1/listen?model=nova-2&language=en&punctuate=true";
+        let url = "https://api.deepgram.com/v1/listen?model=nova-2&language=en&punctuate=true&smart_format=true";
 
         let resp = self.client
             .post(url)

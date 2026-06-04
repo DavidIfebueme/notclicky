@@ -144,12 +144,6 @@ async fn pipeline_loop(
         if pressed && !was_pressed {
             let _ = capture.lock().unwrap().start();
             was_pressed = true;
-
-            let screen_c = screen.clone();
-            tokio::task::spawn_blocking(move || {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                let _ = rt.block_on(screen_c.lock().unwrap().capture_cursor_screen());
-            });
         }
 
         if !pressed && was_pressed {
@@ -171,11 +165,7 @@ async fn pipeline_loop(
                             let _ = m.spawn(prompt, None, None).await;
                         }
                     } else {
-                        let screen_c = screen.clone();
-                        let screenshot = tokio::task::spawn_blocking(move || {
-                            let rt = tokio::runtime::Runtime::new().unwrap();
-                            rt.block_on(screen_c.lock().unwrap().capture_cursor_screen())
-                        }).await.unwrap().ok();
+                        let screenshot = screen.lock().unwrap().capture_cursor_screen().await.ok();
                         let llm_c = llm.clone();
                         let tts_c = tts.clone();
                         let sys = system_prompt.clone();
@@ -234,11 +224,7 @@ async fn pipeline_loop(
                                     let audio = capture.lock().unwrap().stop();
                                     eprintln!("notclicky: wake word triggered, processing command...");
 
-                                    let screen_c = screen.clone();
-                                    let screenshot = tokio::task::spawn_blocking(move || {
-                                        let rt = tokio::runtime::Runtime::new().unwrap();
-                                        rt.block_on(screen_c.lock().unwrap().capture_cursor_screen())
-                                    }).await.unwrap().ok();
+                                    let screenshot = screen.lock().unwrap().capture_cursor_screen().await.ok();
                                     let transcript = transcribe(&audio, sample_rate, &stt, &deepgram_api_key).await;
 
                                     if !transcript.trim().is_empty() {

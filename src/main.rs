@@ -150,7 +150,9 @@ fn create_tts(config: &app::AppConfig, secrets: &app::Secrets) -> Box<dyn voice:
         }
         _ => {
             let voice = if config.tts.voice_id.is_empty() {
-                "en-US-AriaNeural".to_string()
+                "Microsoft Server Speech Text to Speech Voice (en-US, AriaNeural)".to_string()
+            } else if !config.tts.voice_id.contains('(') {
+                format!("Microsoft Server Speech Text to Speech Voice (en-US, {})", config.tts.voice_id)
             } else {
                 config.tts.voice_id.clone()
             };

@@ -48,16 +48,7 @@ impl DeepgramSttProvider {
         &self.api_key
     }
 
-    pub fn transcribe_sync(&self, audio: &[f32], sample_rate: u32) -> Result<String> {
-        let wav_data = encode_wav(audio, sample_rate);
-        let rt = tokio::runtime::Runtime::new()?;
-        let text = rt.block_on(async {
-            self.transcribe_bytes(&wav_data).await
-        })?;
-        Ok(text)
-    }
-
-    async fn transcribe_bytes(&self, audio_data: &[u8]) -> Result<String> {
+    pub async fn transcribe_bytes(&self, audio_data: &[u8]) -> Result<String> {
         let url = "https://api.deepgram.com/v1/listen?model=nova-2&language=en&punctuate=true&smart_format=true";
         let resp = self.client
             .post(url)
@@ -201,7 +192,7 @@ fn encode_pcm_i16(samples: &[f32]) -> Vec<u8> {
     buf
 }
 
-fn encode_wav(samples: &[f32], sample_rate: u32) -> Vec<u8> {
+pub fn encode_wav(samples: &[f32], sample_rate: u32) -> Vec<u8> {
     let num_channels: u16 = 1;
     let bits_per_sample: u16 = 16;
     let byte_rate = sample_rate * num_channels as u32 * bits_per_sample as u32 / 8;

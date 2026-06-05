@@ -142,7 +142,12 @@ fn create_tts(config: &app::AppConfig, secrets: &app::Secrets) -> Box<dyn voice:
         }
         "deepgram" => {
             let key = secrets.get("DEEPGRAM_API_KEY").unwrap_or("").to_string();
-            Box::new(voice::tts_providers::deepgram::DeepgramTtsProvider::new(key))
+            let model = if config.tts.voice_id.is_empty() {
+                "aura-2-arcas-en".to_string()
+            } else {
+                config.tts.voice_id.clone()
+            };
+            Box::new(voice::tts_providers::deepgram::DeepgramTtsProvider::with_model(key, model))
         }
         "cartesia" => {
             let key = secrets.get("CARTESIA_API_KEY").unwrap_or("").to_string();

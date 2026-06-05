@@ -142,7 +142,7 @@ impl Default for AgentConfig {
 fn default_llm_provider() -> String { "openai-compatible".into() }
 fn default_llm_model() -> String { "glm-4-plus".into() }
 fn default_max_tokens() -> u32 { 4096 }
-fn default_tts_provider() -> String { "edge".into() }
+fn default_tts_provider() -> String { "deepgram".into() }
 fn default_stt_provider() -> String { "deepgram".into() }
 fn default_stt_model() -> String { "base".into() }
 fn default_stt_language() -> String { "en".into() }

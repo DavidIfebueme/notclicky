@@ -23,3 +23,19 @@ async fn edge_tts_synthesize_full_voice() {
     }
     panic!("Edge TTS failed after 3 attempts");
 }
+
+#[tokio::test]
+async fn deepgram_tts_synthesize() {
+    let key = std::env::var("DEEPGRAM_API_KEY").unwrap_or_default();
+    if key.is_empty() {
+        eprintln!("Skipping Deepgram TTS test — no API key");
+        return;
+    }
+    let provider = notclicky::voice::tts_providers::deepgram::DeepgramTtsProvider::with_model(
+        key,
+        "aura-2-arcas-en".to_string(),
+    );
+    let audio = provider.synthesize("Hello world").await.expect("Deepgram TTS failed");
+    assert!(!audio.is_empty(), "Deepgram TTS returned empty audio");
+    eprintln!("Deepgram Aura OK: {} bytes", audio.len());
+}

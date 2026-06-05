@@ -173,6 +173,7 @@ async fn pipeline_loop(
             let audio = capture.lock().unwrap().stop();
             if !audio.is_empty() {
                 let transcript = transcribe(&audio, sample_rate, &stt, &deepgram_api_key).await;
+                eprintln!("notclicky: ptt transcript = {:?}", if transcript.is_empty() { "(empty)".to_string() } else { transcript.clone() });
 
                 if !transcript.trim().is_empty() {
                     if let Some(ref cb) = *on_transcript.lock().unwrap() {
@@ -208,7 +209,7 @@ async fn pipeline_loop(
                                 &llm_c, &tts_c, &sys, &text,
                                 screenshot.as_ref(), &lib, &cancel,
                             ));
-                            vs.store(STATE_IDLE, Ordering::SeqCst);
+                            vs.compare_exchange(STATE_RESPONDING, STATE_IDLE, Ordering::SeqCst, Ordering::SeqCst).ok();
                         });
                     }
                 } else {
@@ -227,6 +228,9 @@ async fn pipeline_loop(
 
         if !was_pressed && wake_word_enabled {
             let current_state = voice_state.load(Ordering::SeqCst);
+            if current_state == STATE_IDLE {
+                let _ = capture.lock().unwrap().start();
+            }
             if current_state != STATE_IDLE {
                 wake_word_counter = 0;
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
@@ -274,10 +278,17 @@ async fn pipeline_loop(
                                     last_wake_word_time = Some(std::time::Instant::now());
                                     voice_state.store(STATE_LISTENING, Ordering::SeqCst);
                                     idle_since = None;
+                                    let _ = capture.lock().unwrap().stop();
+                                    let _ = capture.lock().unwrap().start();
+                                    eprintln!("notclicky: listening for command...");
+
+                                    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+
                                     let audio = capture.lock().unwrap().stop();
-                                    eprintln!("notclicky: wake word triggered, processing command...");
+                                    eprintln!("notclicky: captured {} samples, transcribing...", audio.len());
 
                                     let transcript = transcribe(&audio, sample_rate, &stt, &deepgram_api_key).await;
+                                    eprintln!("notclicky: transcript = {:?}", if transcript.is_empty() { "(empty)".to_string() } else { transcript.clone() });
 
                                     if !transcript.trim().is_empty() {
                                         if is_agent_request(&transcript) {
@@ -304,16 +315,21 @@ async fn pipeline_loop(
                                             let cancel = response_cancel.clone();
                                             response_cancel.store(false, Ordering::SeqCst);
                                             voice_state.store(STATE_RESPONDING, Ordering::SeqCst);
+                                            eprintln!("notclicky: sending to LLM...");
                                             std::thread::spawn(move || {
                                                 let rt = tokio::runtime::Runtime::new().unwrap();
-                                                let _ = rt.block_on(respond_with_pipeline(
+                                                let result = rt.block_on(respond_with_pipeline(
                                                     &llm_c, &tts_c, &sys, &text,
                                                     screenshot.as_ref(), &lib, &cancel,
                                                 ));
-                                                vs.store(STATE_IDLE, Ordering::SeqCst);
+                                                if let Err(e) = result {
+                                                    eprintln!("notclicky: response error: {}", e);
+                                                }
+                                                vs.compare_exchange(STATE_RESPONDING, STATE_IDLE, Ordering::SeqCst, Ordering::SeqCst).ok();
                                             });
                                         }
                                     } else {
+                                        eprintln!("notclicky: no speech detected after wake word");
                                         voice_state.store(STATE_IDLE, Ordering::SeqCst);
                                         idle_since = Some(std::time::Instant::now());
                                     }
@@ -428,7 +444,9 @@ async fn respond_with_pipeline(
         temperature: None,
     };
 
+    eprintln!("notclicky: requesting LLM stream...");
     let stream = llm.lock().unwrap().stream(req).await?;
+    eprintln!("notclicky: LLM stream connected");
     let mut sentence_stream = SentenceStream::new(stream);
     let tts_provider = tts.lock().unwrap();
 

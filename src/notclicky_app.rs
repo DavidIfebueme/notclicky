@@ -134,7 +134,8 @@ impl NotClickyApp {
             .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
             .join("notclicky")
             .join("agent-home");
-        let agent_manager = crate::agent::process::AgentManager::new(home_dir);
+        let agent_backend = crate::agent::process::AgentBackend::from_str(&self.config.agent.backend);
+        let agent_manager = crate::agent::process::AgentManager::new(home_dir, agent_backend);
         assistant.set_agent_manager(agent_manager);
 
         if let Some(ref deepgram_key) = self._secrets.deepgram_api_key {

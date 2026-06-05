@@ -17,6 +17,8 @@ pub struct AppConfig {
     pub bridge: BridgeConfig,
     #[serde(default)]
     pub overlay: OverlayConfig,
+    #[serde(default)]
+    pub agent: AgentConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -63,6 +65,12 @@ pub struct OverlayConfig {
     pub backend: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct AgentConfig {
+    #[serde(default = "default_agent_backend")]
+    pub backend: String,
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -71,6 +79,7 @@ impl Default for AppConfig {
             stt: SttConfig::default(),
             bridge: BridgeConfig::default(),
             overlay: OverlayConfig::default(),
+            agent: AgentConfig::default(),
         }
     }
 }
@@ -122,6 +131,14 @@ impl Default for OverlayConfig {
     }
 }
 
+impl Default for AgentConfig {
+    fn default() -> Self {
+        Self {
+            backend: default_agent_backend(),
+        }
+    }
+}
+
 fn default_llm_provider() -> String { "openai-compatible".into() }
 fn default_llm_model() -> String { "glm-4-plus".into() }
 fn default_max_tokens() -> u32 { 4096 }
@@ -131,6 +148,7 @@ fn default_stt_model() -> String { "base".into() }
 fn default_stt_language() -> String { "en".into() }
 fn default_bridge_port() -> u16 { 32123 }
 fn default_overlay_backend() -> String { "x11".into() }
+fn default_agent_backend() -> String { "opencode".into() }
 
 pub fn config_dir() -> PathBuf {
     dirs::config_dir().unwrap_or_else(|| PathBuf::from("/tmp")).join("notclicky")

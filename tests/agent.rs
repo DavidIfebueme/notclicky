@@ -1,4 +1,5 @@
 use notclicky::agent::session::{AgentSession, AgentStatus};
+use notclicky::agent::process::AgentBackend;
 
 #[test]
 fn session_new_has_starting_status() {
@@ -67,4 +68,21 @@ fn agent_routing_strips_keyword() {
     assert_eq!(notclicky::voice::assistant::strip_agent_keyword("agent build a webpage"), "build a webpage");
     assert_eq!(notclicky::voice::assistant::strip_agent_keyword("clicky agent fix the bug"), "fix the bug");
     assert_eq!(notclicky::voice::assistant::strip_agent_keyword("hello world"), "hello world");
+}
+
+#[test]
+fn agent_backend_from_str() {
+    assert_eq!(AgentBackend::from_str("opencode"), AgentBackend::Opencode);
+    assert_eq!(AgentBackend::from_str("claude-code"), AgentBackend::ClaudeCode);
+    assert_eq!(AgentBackend::from_str("claude_code"), AgentBackend::ClaudeCode);
+    assert_eq!(AgentBackend::from_str("claudecode"), AgentBackend::ClaudeCode);
+    assert_eq!(AgentBackend::from_str("codex"), AgentBackend::Codex);
+    assert_eq!(AgentBackend::from_str("unknown"), AgentBackend::Opencode);
+}
+
+#[test]
+fn agent_backend_binary_names() {
+    assert_eq!(AgentBackend::Opencode.binary_name(), "opencode");
+    assert_eq!(AgentBackend::ClaudeCode.binary_name(), "claude");
+    assert_eq!(AgentBackend::Codex.binary_name(), "codex");
 }

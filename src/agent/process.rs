@@ -9,6 +9,40 @@ use tokio::sync::{Mutex, watch};
 
 use super::session::{AgentEvent, AgentEventKind, AgentSession, AgentStatus};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentBackend {
+    Opencode,
+    ClaudeCode,
+    Codex,
+}
+
+impl AgentBackend {
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "claude-code" | "claude_code" | "claudecode" => Self::ClaudeCode,
+            "codex" => Self::Codex,
+            _ => Self::Opencode,
+        }
+    }
+
+    pub fn binary_name(&self) -> &str {
+        match self {
+            Self::Opencode => "opencode",
+            Self::ClaudeCode => "claude",
+            Self::Codex => "codex",
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn label(&self) -> &str {
+        match self {
+            Self::Opencode => "opencode",
+            Self::ClaudeCode => "claude-code",
+            Self::Codex => "codex",
+        }
+    }
+}
+
 pub struct AgentProcess {
     child: Child,
     _session_id: String,
@@ -39,20 +73,19 @@ pub struct AgentManager {
     processes: Arc<Mutex<HashMap<String, AgentProcess>>>,
     event_tx: watch::Sender<Option<AgentEvent>>,
     _event_rx: watch::Receiver<Option<AgentEvent>>,
-    opencode_path: String,
+    backend: AgentBackend,
     home_dir: PathBuf,
 }
 
 impl AgentManager {
-    pub fn new(home_dir: PathBuf) -> Self {
+    pub fn new(home_dir: PathBuf, backend: AgentBackend) -> Self {
         let (event_tx, event_rx) = watch::channel(None);
-        let opencode_path = std::env::var("OPENCODE_PATH").unwrap_or_else(|_| "opencode".to_string());
         Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             processes: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
             _event_rx: event_rx,
-            opencode_path,
+            backend,
             home_dir,
         }
     }
@@ -83,17 +116,37 @@ impl AgentManager {
 
         self.sessions.lock().await.insert(session_id.clone(), session);
 
-        let mut cmd = Command::new(&self.opencode_path);
-        cmd.arg("run")
-            .arg("--format").arg("json")
-            .arg("--dir").arg(&dir)
-            .arg(&prompt)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        let binary = self.resolve_binary();
+        let mut cmd = Command::new(&binary);
 
-        if let Some(ref m) = model {
-            cmd.arg("--model").arg(m);
+        match self.backend {
+            AgentBackend::Opencode => {
+                cmd.arg("run")
+                    .arg("--format").arg("json")
+                    .arg("--dir").arg(&dir)
+                    .arg(&prompt);
+            }
+            AgentBackend::ClaudeCode => {
+                cmd.arg("--print")
+                    .arg("--output-format").arg("json")
+                    .arg(&prompt);
+                if let Some(ref m) = model {
+                    cmd.arg("--model").arg(m);
+                }
+                cmd.current_dir(&dir);
+            }
+            AgentBackend::Codex => {
+                cmd.arg("exec")
+                    .arg(&prompt);
+                if let Some(ref m) = model {
+                    cmd.arg("--model").arg(m);
+                }
+                cmd.current_dir(&dir);
+            }
         }
+
+        cmd.stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
 
         let child = cmd.spawn()?;
         let process = AgentProcess {
@@ -106,6 +159,13 @@ impl AgentManager {
         self.spawn_reader(session_id.clone());
 
         Ok(session_id)
+    }
+
+    fn resolve_binary(&self) -> String {
+        let name = self.backend.binary_name();
+        std::env::var(format!("{}_PATH", name.to_uppercase()))
+            .or_else(|_| which_binary(name))
+            .unwrap_or_else(|_| name.to_string())
     }
 
     fn setup_agent_home(&self, dir: &str) -> Result<()> {
@@ -250,6 +310,19 @@ impl AgentManager {
         self.update_status(session_id, AgentStatus::Failed).await;
         Ok(())
     }
+}
+
+fn which_binary(name: &str) -> Result<String> {
+    let output = std::process::Command::new("which")
+        .arg(name)
+        .output()?;
+    if output.status.success() {
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !path.is_empty() {
+            return Ok(path);
+        }
+    }
+    anyhow::bail!("{} not found in PATH", name)
 }
 
 fn extract_text(val: &serde_json::Value) -> String {

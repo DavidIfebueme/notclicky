@@ -128,6 +128,7 @@ impl NotClickyApp {
                 Box::new(ScreenWrapper { inner: screen }) as Box<dyn ScreenCapture>
             },
             system_prompt,
+            self.overlay_tx.clone(),
         );
 
         let home_dir = dirs::config_dir()

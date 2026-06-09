@@ -192,6 +192,110 @@ fn encode_pcm_i16(samples: &[f32]) -> Vec<u8> {
     buf
 }
 
+pub struct DeepgramWakeWordSession {
+    ws_stream: futures::stream::SplitStream<
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
+    >,
+    ws_sink: futures::stream::SplitSink<
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
+        Message,
+    >,
+    _sample_rate: u32,
+    buffer: Vec<f32>,
+    chunk_size: usize,
+}
+
+impl DeepgramWakeWordSession {
+    pub async fn connect(api_key: &str, sample_rate: u32) -> Result<Self> {
+        let url = format!(
+            "wss://api.deepgram.com/v1/listen?model=nova-2&language=en&punctuate=true&smart_format=true&interim_results=true&endpointing=300&sample_rate={}&channels=1&encoding=linear16",
+            sample_rate
+        );
+
+        let mut request = tokio_tungstenite::tungstenite::client::IntoClientRequest::into_client_request(&url)?;
+        let headers = request.headers_mut();
+        headers.insert("Authorization", format!("Token {}", api_key).parse()?);
+
+        let (ws, _) = connect_async(request).await?;
+        let (ws_sink, ws_stream) = ws.split();
+
+        let chunk_size = (sample_rate as usize * 100) / 1000;
+
+        Ok(Self {
+            ws_stream,
+            ws_sink,
+            _sample_rate: sample_rate,
+            buffer: Vec::new(),
+            chunk_size,
+        })
+    }
+
+    pub async fn send_audio(&mut self, audio: &[f32]) -> Result<()> {
+        self.buffer.extend_from_slice(audio);
+
+        while self.buffer.len() >= self.chunk_size {
+            let chunk: Vec<f32> = self.buffer.drain(0..self.chunk_size).collect();
+            let pcm = encode_pcm_i16(&chunk);
+            self.ws_sink.send(Message::Binary(pcm.into())).await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn flush_buffer(&mut self) -> Result<()> {
+        if !self.buffer.is_empty() {
+            let pcm = encode_pcm_i16(&self.buffer);
+            self.ws_sink.send(Message::Binary(pcm.into())).await?;
+            self.buffer.clear();
+        }
+        Ok(())
+    }
+
+    pub async fn next_transcript(&mut self) -> Option<Result<WakeWordTranscript>> {
+        while let Some(msg) = self.ws_stream.next().await {
+            match msg {
+                Ok(Message::Text(text)) => {
+                    if let Ok(parsed) = serde_json::from_str::<DeepgramMessage>(&text) {
+                        match parsed.msg_type.as_str() {
+                            "Results" | "Transcript" => {
+                                if let Some(channel) = parsed.channel {
+                                    if let Some(alt) = channel.channel.alternatives.first() {
+                                        let is_final = parsed.msg_type == "Results";
+                                        return Some(Ok(WakeWordTranscript {
+                                            text: alt.transcript.trim().to_string(),
+                                            is_final,
+                                        }));
+                                    }
+                                }
+                            }
+                            _ => continue,
+                        }
+                    }
+                }
+                Ok(Message::Close(_)) => return None,
+                Err(e) => return Some(Err(anyhow::anyhow!("WebSocket error: {}", e))),
+                _ => continue,
+            }
+        }
+        None
+    }
+
+    pub async fn close(&mut self) -> Result<()> {
+        self.flush_buffer().await?;
+        self.ws_sink.send(Message::Close(None)).await?;
+        Ok(())
+    }
+}
+
+pub struct WakeWordTranscript {
+    pub text: String,
+    pub is_final: bool,
+}
+
 pub fn encode_wav(samples: &[f32], sample_rate: u32) -> Vec<u8> {
     let num_channels: u16 = 1;
     let bits_per_sample: u16 = 16;

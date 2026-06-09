@@ -15,6 +15,7 @@ impl DeepgramTtsProvider {
     pub fn with_model(api_key: String, model: String) -> Self {
         let client = Client::builder()
             .connect_timeout(std::time::Duration::from_secs(5))
+            .timeout(std::time::Duration::from_secs(30))
             .build()
             .unwrap_or_else(|_| Client::new());
         Self { api_key, model, client }

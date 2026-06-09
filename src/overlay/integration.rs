@@ -1,7 +1,6 @@
 use crate::ai::point_parser;
 use crate::overlay::cursor::OverlayCommand;
 
-#[allow(dead_code)]
 pub fn process_stream_token(token: &str, overlay_tx: &std::sync::mpsc::Sender<OverlayCommand>) {
     let points = point_parser::parse_points(token);
     for p in points {

@@ -658,7 +658,10 @@ fn contains_word_boundary(text: &str, phrase: &str) -> bool {
         return false;
     }
     let text_words: Vec<&str> = text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
-    for i in 0..=text_words.len().saturating_sub(phrase_words.len()) {
+    if phrase_words.len() > text_words.len() {
+        return false;
+    }
+    for i in 0..=text_words.len() - phrase_words.len() {
         if text_words[i..i + phrase_words.len()] == phrase_words[..] {
             return true;
         }

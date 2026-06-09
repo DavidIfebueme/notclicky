@@ -4,9 +4,9 @@ use std::time::Duration;
 #[tokio::test]
 async fn edge_tts_synthesize_full_voice() {
     let provider = notclicky::voice::tts_providers::edge::EdgeTtsProvider::new(
-        "Microsoft Server Speech Text to Speech Voice (en-US, AriaNeural)".to_string()
+        "Microsoft Server Speech Text to Speech Voice (en-US, AriaNeural)".to_string(),
     );
-    
+
     for attempt in 1..=3 {
         let result = provider.synthesize("Hello world").await;
         match result {
@@ -35,7 +35,10 @@ async fn deepgram_tts_synthesize() {
         key,
         "aura-2-arcas-en".to_string(),
     );
-    let audio = provider.synthesize("Hello world").await.expect("Deepgram TTS failed");
+    let audio = provider
+        .synthesize("Hello world")
+        .await
+        .expect("Deepgram TTS failed");
     assert!(!audio.is_empty(), "Deepgram TTS returned empty audio");
     eprintln!("Deepgram Aura OK: {} bytes", audio.len());
 }

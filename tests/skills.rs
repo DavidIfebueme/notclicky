@@ -24,9 +24,19 @@ fn loader_excludes_mac_skills() {
     let mut loader = notclicky::skills::loader::SkillLoader::new(skills_dir);
     let skills = loader.load_all().unwrap();
 
-    let mac_skills = ["apple-notes", "apple-reminders", "imessage", "findmy", "maps"];
+    let mac_skills = [
+        "apple-notes",
+        "apple-reminders",
+        "imessage",
+        "findmy",
+        "maps",
+    ];
     for skill in &skills {
-        assert!(!mac_skills.contains(&skill.name.as_str()), "Mac skill {} should be excluded", skill.name);
+        assert!(
+            !mac_skills.contains(&skill.name.as_str()),
+            "Mac skill {} should be excluded",
+            skill.name
+        );
     }
 }
 
@@ -84,7 +94,10 @@ fn suggestion_engine_matches_lm_studio() {
 
     let engine = notclicky::skills::suggestion::SuggestionEngine::from_file(&rules_path).unwrap();
     let suggestions = engine.suggest_for_window("LM Studio - Local Models");
-    assert!(!suggestions.is_empty(), "should suggest skills for LM Studio");
+    assert!(
+        !suggestions.is_empty(),
+        "should suggest skills for LM Studio"
+    );
 }
 
 #[test]
@@ -96,7 +109,10 @@ fn skill_context_builds_prompt() {
 
     let ctx = notclicky::skills::context::SkillContext::new(resources_dir);
     let prompt = ctx.build_system_prompt(Some("LM Studio - Local Models"));
-    assert!(!prompt.is_empty(), "prompt should not be empty for LM Studio");
+    assert!(
+        !prompt.is_empty(),
+        "prompt should not be empty for LM Studio"
+    );
 }
 
 #[test]
@@ -109,5 +125,9 @@ fn linux_skill_count() {
 
     let mut loader = notclicky::skills::loader::SkillLoader::new(skills_dir);
     let skills = loader.load_all().unwrap();
-    assert!(skills.len() >= 37, "should load at least 37 Linux-applicable skills, got {}", skills.len());
+    assert!(
+        skills.len() >= 37,
+        "should load at least 37 Linux-applicable skills, got {}",
+        skills.len()
+    );
 }

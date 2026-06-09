@@ -43,24 +43,48 @@ fn resample_upsample() {
 
 #[test]
 fn screenshot_heuristic_visual_phrases() {
-    assert!(notclicky::voice::assistant::should_attach_screenshot("what's on my screen"));
-    assert!(notclicky::voice::assistant::should_attach_screenshot("look at this window"));
-    assert!(notclicky::voice::assistant::should_attach_screenshot("click that button"));
-    assert!(notclicky::voice::assistant::should_attach_screenshot("where is the icon"));
-    assert!(notclicky::voice::assistant::should_attach_screenshot("highlight this menu"));
+    assert!(notclicky::voice::assistant::should_attach_screenshot(
+        "what's on my screen"
+    ));
+    assert!(notclicky::voice::assistant::should_attach_screenshot(
+        "look at this window"
+    ));
+    assert!(notclicky::voice::assistant::should_attach_screenshot(
+        "click that button"
+    ));
+    assert!(notclicky::voice::assistant::should_attach_screenshot(
+        "where is the icon"
+    ));
+    assert!(notclicky::voice::assistant::should_attach_screenshot(
+        "highlight this menu"
+    ));
 }
 
 #[test]
 fn screenshot_heuristic_visual_tokens() {
-    assert!(notclicky::voice::assistant::should_attach_screenshot("describe the dialog"));
-    assert!(notclicky::voice::assistant::should_attach_screenshot("what does this tooltip say"));
-    assert!(notclicky::voice::assistant::should_attach_screenshot("check the sidebar"));
+    assert!(notclicky::voice::assistant::should_attach_screenshot(
+        "describe the dialog"
+    ));
+    assert!(notclicky::voice::assistant::should_attach_screenshot(
+        "what does this tooltip say"
+    ));
+    assert!(notclicky::voice::assistant::should_attach_screenshot(
+        "check the sidebar"
+    ));
 }
 
 #[test]
 fn screenshot_heuristic_non_visual() {
-    assert!(!notclicky::voice::assistant::should_attach_screenshot("what's the weather today"));
-    assert!(!notclicky::voice::assistant::should_attach_screenshot("tell me a joke"));
-    assert!(!notclicky::voice::assistant::should_attach_screenshot("how do I install rust"));
-    assert!(!notclicky::voice::assistant::should_attach_screenshot("what time is it"));
+    assert!(!notclicky::voice::assistant::should_attach_screenshot(
+        "what's the weather today"
+    ));
+    assert!(!notclicky::voice::assistant::should_attach_screenshot(
+        "tell me a joke"
+    ));
+    assert!(!notclicky::voice::assistant::should_attach_screenshot(
+        "how do I install rust"
+    ));
+    assert!(!notclicky::voice::assistant::should_attach_screenshot(
+        "what time is it"
+    ));
 }

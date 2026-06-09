@@ -1,5 +1,5 @@
-use notclicky::agent::session::{AgentSession, AgentStatus};
 use notclicky::agent::process::AgentBackend;
+use notclicky::agent::session::{AgentSession, AgentStatus};
 
 #[test]
 fn session_new_has_starting_status() {
@@ -14,7 +14,11 @@ fn session_new_has_starting_status() {
 
 #[test]
 fn session_with_model() {
-    let session = AgentSession::new("hello".to_string(), "/home".to_string(), Some("gpt-4".to_string()));
+    let session = AgentSession::new(
+        "hello".to_string(),
+        "/home".to_string(),
+        Some("gpt-4".to_string()),
+    );
     assert_eq!(session.model.as_deref(), Some("gpt-4"));
 }
 
@@ -27,7 +31,12 @@ fn session_id_is_unique() {
 
 #[test]
 fn session_status_serde_roundtrip() {
-    let statuses = vec![AgentStatus::Starting, AgentStatus::Running, AgentStatus::Done, AgentStatus::Failed];
+    let statuses = vec![
+        AgentStatus::Starting,
+        AgentStatus::Running,
+        AgentStatus::Done,
+        AgentStatus::Failed,
+    ];
     for status in statuses {
         let json = serde_json::to_string(&status).unwrap();
         let parsed: AgentStatus = serde_json::from_str(&json).unwrap();
@@ -37,7 +46,11 @@ fn session_status_serde_roundtrip() {
 
 #[test]
 fn session_serde_roundtrip() {
-    let session = AgentSession::new("test".to_string(), "/tmp".to_string(), Some("claude-3".to_string()));
+    let session = AgentSession::new(
+        "test".to_string(),
+        "/tmp".to_string(),
+        Some("claude-3".to_string()),
+    );
     let json = serde_json::to_string(&session).unwrap();
     let parsed: AgentSession = serde_json::from_str(&json).unwrap();
     assert_eq!(session.id, parsed.id);
@@ -56,26 +69,54 @@ fn session_output_accumulates() {
 
 #[test]
 fn agent_routing_detects_agent_keyword() {
-    assert!(notclicky::voice::assistant::is_agent_request("agent build a webpage"));
-    assert!(notclicky::voice::assistant::is_agent_request("Agent do something"));
-    assert!(notclicky::voice::assistant::is_agent_request("clicky agent fix the bug"));
-    assert!(!notclicky::voice::assistant::is_agent_request("what is the weather"));
-    assert!(!notclicky::voice::assistant::is_agent_request("tell me a joke"));
+    assert!(notclicky::voice::assistant::is_agent_request(
+        "agent build a webpage"
+    ));
+    assert!(notclicky::voice::assistant::is_agent_request(
+        "Agent do something"
+    ));
+    assert!(notclicky::voice::assistant::is_agent_request(
+        "clicky agent fix the bug"
+    ));
+    assert!(!notclicky::voice::assistant::is_agent_request(
+        "what is the weather"
+    ));
+    assert!(!notclicky::voice::assistant::is_agent_request(
+        "tell me a joke"
+    ));
 }
 
 #[test]
 fn agent_routing_strips_keyword() {
-    assert_eq!(notclicky::voice::assistant::strip_agent_keyword("agent build a webpage"), "build a webpage");
-    assert_eq!(notclicky::voice::assistant::strip_agent_keyword("clicky agent fix the bug"), "fix the bug");
-    assert_eq!(notclicky::voice::assistant::strip_agent_keyword("hello world"), "hello world");
+    assert_eq!(
+        notclicky::voice::assistant::strip_agent_keyword("agent build a webpage"),
+        "build a webpage"
+    );
+    assert_eq!(
+        notclicky::voice::assistant::strip_agent_keyword("clicky agent fix the bug"),
+        "fix the bug"
+    );
+    assert_eq!(
+        notclicky::voice::assistant::strip_agent_keyword("hello world"),
+        "hello world"
+    );
 }
 
 #[test]
 fn agent_backend_from_str() {
     assert_eq!(AgentBackend::from_str("opencode"), AgentBackend::Opencode);
-    assert_eq!(AgentBackend::from_str("claude-code"), AgentBackend::ClaudeCode);
-    assert_eq!(AgentBackend::from_str("claude_code"), AgentBackend::ClaudeCode);
-    assert_eq!(AgentBackend::from_str("claudecode"), AgentBackend::ClaudeCode);
+    assert_eq!(
+        AgentBackend::from_str("claude-code"),
+        AgentBackend::ClaudeCode
+    );
+    assert_eq!(
+        AgentBackend::from_str("claude_code"),
+        AgentBackend::ClaudeCode
+    );
+    assert_eq!(
+        AgentBackend::from_str("claudecode"),
+        AgentBackend::ClaudeCode
+    );
     assert_eq!(AgentBackend::from_str("codex"), AgentBackend::Codex);
     assert_eq!(AgentBackend::from_str("unknown"), AgentBackend::Opencode);
 }

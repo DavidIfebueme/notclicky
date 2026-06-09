@@ -157,6 +157,7 @@ async fn pipeline_loop(
     let mut was_pressed = false;
     let mut idle_since: Option<std::time::Instant> = None;
     let mut wake_word_session: Option<DeepgramWakeWordSession> = None;
+    let mut wake_word_capture_started = false;
     let response_cancel: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 
     while running.load(Ordering::SeqCst) {
@@ -232,182 +233,182 @@ async fn pipeline_loop(
                 voice_state.store(STATE_IDLE, Ordering::SeqCst);
                 idle_since = Some(std::time::Instant::now());
             }
-
-            if wake_word_enabled && voice_state.load(Ordering::SeqCst) == STATE_IDLE {
-                let _ = capture.lock().unwrap().start();
-            }
         }
 
-        if !was_pressed && wake_word_enabled {
-            let current_state = voice_state.load(Ordering::SeqCst);
-            if current_state == STATE_IDLE {
-                let _ = capture.lock().unwrap().start();
+        if !wake_word_enabled {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            continue;
+        }
 
-                if wake_word_session.is_none() {
-                    if let Some(ref key) = deepgram_api_key {
-                        match DeepgramWakeWordSession::connect(key, sample_rate).await {
-                            Ok(session) => {
-                                eprintln!("notclicky: wake word streaming connected");
-                                wake_word_session = Some(session);
-                            }
-                            Err(e) => {
-                                eprintln!("notclicky: wake word connect failed: {}", e);
-                            }
+        if current_state != STATE_IDLE {
+            if let Some(mut session) = wake_word_session.take() {
+                let _ = session.close().await;
+            }
+            wake_word_capture_started = false;
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            continue;
+        }
+
+        if !wake_word_capture_started {
+            let _ = capture.lock().unwrap().start();
+            eprintln!("notclicky: wake word capture started");
+            wake_word_capture_started = true;
+
+            if wake_word_session.is_none() {
+                if let Some(ref key) = deepgram_api_key {
+                    match DeepgramWakeWordSession::connect(key, sample_rate).await {
+                        Ok(session) => {
+                            eprintln!("notclicky: wake word streaming connected");
+                            wake_word_session = Some(session);
+                        }
+                        Err(e) => {
+                            eprintln!("notclicky: wake word connect failed: {}", e);
                         }
                     }
                 }
             }
+        }
 
-            if current_state != STATE_IDLE {
-                if let Some(mut session) = wake_word_session.take() {
-                    let _ = session.close().await;
+        let grace_ok = idle_since.map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(IDLE_GRACE_MS));
+        if !grace_ok {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            continue;
+        }
+
+        if let Some(ref mut session) = wake_word_session {
+            let recent = {
+                let cap = capture.lock().unwrap();
+                cap.snapshot()
+            };
+            if !recent.is_empty() {
+                if session.send_audio(&recent).await.is_err() {
+                    eprintln!("notclicky: wake word send_audio failed");
                 }
-                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                continue;
-            }
 
-            let grace_ok = idle_since.map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(IDLE_GRACE_MS));
-            if !grace_ok {
-                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                continue;
-            }
+                while let Some(transcript_result) = session.next_transcript().await {
+                    match transcript_result {
+                        Ok(transcript) => {
+                            let lower = transcript.text.to_lowercase();
+                            let trimmed = lower.trim();
+                            if !trimmed.is_empty() {
+                                eprintln!("notclicky: heard \"{}\"", trimmed);
+                            }
+                            let ww = ["hey clicky", "clicky", "hey clikey", "not clicky", "notclicky"];
+                            if ww.iter().any(|w| lower.contains(w)) {
+                                eprintln!("notclicky: wake word detected!");
+                                voice_state.store(STATE_LISTENING, Ordering::SeqCst);
+                                idle_since = None;
+                                let _ = capture.lock().unwrap().stop();
+                                let _ = capture.lock().unwrap().start();
+                                eprintln!("notclicky: listening for command...");
 
-            if let Some(ref mut session) = wake_word_session {
-                let recent = {
-                    let cap = capture.lock().unwrap();
-                    cap.snapshot()
-                };
-                if !recent.is_empty() {
-                    if session.send_audio(&recent).await.is_ok() {
-                        let cap = capture.lock().unwrap();
-                        cap.trim_to(0);
-                    }
+                                let mut interim_transcript = String::new();
+                                let mut command_transcript = String::new();
+                                let command_start = std::time::Instant::now();
 
-                    while let Some(transcript_result) = session.next_transcript().await {
-                        match transcript_result {
-                            Ok(transcript) => {
-                                let lower = transcript.text.to_lowercase();
-                                let trimmed = lower.trim();
-                                if !trimmed.is_empty() {
-                                    eprintln!("notclicky: heard \"{}\"", trimmed);
-                                }
-                                let ww = ["hey clicky", "clicky", "hey clikey", "not clicky", "notclicky"];
-                                if ww.iter().any(|w| lower.contains(w)) {
-                                    eprintln!("notclicky: wake word detected!");
-                                    voice_state.store(STATE_LISTENING, Ordering::SeqCst);
-                                    idle_since = None;
-                                    let _ = capture.lock().unwrap().stop();
-                                    let _ = capture.lock().unwrap().start();
-                                    eprintln!("notclicky: listening for command...");
-
-                                    let mut interim_transcript = String::new();
-                                    let mut command_transcript = String::new();
-                                    let command_start = std::time::Instant::now();
-
-                                    while command_start.elapsed() < std::time::Duration::from_secs(4) {
-                                        let recent = {
-                                            let cap = capture.lock().unwrap();
-                                            cap.snapshot()
-                                        };
-                                        if !recent.is_empty() {
-                                            if session.send_audio(&recent).await.is_ok() {
-                                                let cap = capture.lock().unwrap();
-                                                cap.trim_to(0);
-                                            }
-
-                                            while let Some(transcript_result) = session.next_transcript().await {
-                                                match transcript_result {
-                                                    Ok(t) => {
-                                                        if !t.text.trim().is_empty() {
-                                                            interim_transcript = t.text.clone();
-                                                            eprintln!("notclicky: interim: \"{}\"", t.text);
-                                                        }
-                                                        if t.is_final {
-                                                            command_transcript = t.text.clone();
-                                                            eprintln!("notclicky: final transcript: \"{}\"", t.text);
-                                                            break;
-                                                        }
-                                                    }
-                                                    Err(e) => {
-                                                        eprintln!("notclicky: command transcript error: {}", e);
-                                                    }
-                                                }
-                                            }
-                                            if !command_transcript.is_empty() {
-                                                break;
-                                            }
-                                        }
-                                        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-                                    }
-
-                                    let _ = session.close().await;
-                                    wake_word_session = None;
-
-                                    let interim_for_respond = interim_transcript.clone();
-                                    let final_text = if command_transcript.is_empty() {
-                                        interim_transcript
-                                    } else {
-                                        command_transcript
+                                while command_start.elapsed() < std::time::Duration::from_secs(4) {
+                                    let recent = {
+                                        let cap = capture.lock().unwrap();
+                                        cap.snapshot()
                                     };
-                                    eprintln!("notclicky: transcript = {:?}", if final_text.is_empty() { "(empty)".to_string() } else { final_text.clone() });
-
-                                    if !final_text.trim().is_empty() {
-                                        if is_agent_request(&final_text) {
-                                            let prompt = strip_agent_keyword(&final_text);
-                                            let mgr_guard = agent_manager.lock().unwrap();
-                                            if let Some(ref m) = *mgr_guard {
-                                                let _ = m.spawn(prompt, None, None).await;
-                                            }
-                                            voice_state.store(STATE_IDLE, Ordering::SeqCst);
-                                            idle_since = Some(std::time::Instant::now());
-                                        } else {
-                                            voice_state.store(STATE_PROCESSING, Ordering::SeqCst);
-                                            let screenshot = if should_attach_screenshot(&final_text) {
-                                                screen.lock().unwrap().capture_cursor_screen().await.ok()
-                                            } else {
-                                                None
-                                            };
-                                            let llm_c = llm.clone();
-                                            let tts_c = tts.clone();
-                                            let sys = system_prompt.clone();
-                                            let lib = filler_library.clone();
-                                            let text = final_text.clone();
-                                            let interim = interim_for_respond;
-                                            let vs = voice_state.clone();
-                                            let cancel = response_cancel.clone();
-                                            let overlay_tx = overlay_tx.clone();
-                                            response_cancel.store(false, Ordering::SeqCst);
-                                            voice_state.store(STATE_RESPONDING, Ordering::SeqCst);
-                                            eprintln!("notclicky: sending to LLM...");
-                                            std::thread::spawn(move || {
-                                                let rt = tokio::runtime::Runtime::new().unwrap();
-                                                let result = rt.block_on(respond_with_pipeline(
-                                                    &llm_c, &tts_c, &sys, &text,
-                                                    screenshot.as_ref(), &lib, &cancel,
-                                                    interim,
-                                                    overlay_tx,
-                                                ));
-                                                if let Err(e) = result {
-                                                    eprintln!("notclicky: response error: {}", e);
-                                                }
-                                                vs.compare_exchange(STATE_RESPONDING, STATE_IDLE, Ordering::SeqCst, Ordering::SeqCst).ok();
-                                            });
+                                    if !recent.is_empty() {
+                                        if session.send_audio(&recent).await.is_err() {
+                                            eprintln!("notclicky: command send_audio failed");
                                         }
-                                    } else {
-                                        eprintln!("notclicky: no speech detected after wake word");
+
+                                        while let Some(transcript_result) = session.next_transcript().await {
+                                            match transcript_result {
+                                                Ok(t) => {
+                                                    if !t.text.trim().is_empty() {
+                                                        interim_transcript = t.text.clone();
+                                                        eprintln!("notclicky: interim: \"{}\"", t.text);
+                                                    }
+                                                    if t.is_final {
+                                                        command_transcript = t.text.clone();
+                                                        eprintln!("notclicky: final transcript: \"{}\"", t.text);
+                                                        break;
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    eprintln!("notclicky: command transcript error: {}", e);
+                                                }
+                                            }
+                                        }
+                                        if !command_transcript.is_empty() {
+                                            break;
+                                        }
+                                    }
+                                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                                }
+
+                                let _ = session.close().await;
+                                wake_word_session = None;
+
+                                let interim_for_respond = interim_transcript.clone();
+                                let final_text = if command_transcript.is_empty() {
+                                    interim_transcript
+                                } else {
+                                    command_transcript
+                                };
+                                eprintln!("notclicky: transcript = {:?}", if final_text.is_empty() { "(empty)".to_string() } else { final_text.clone() });
+
+                                if !final_text.trim().is_empty() {
+                                    if is_agent_request(&final_text) {
+                                        let prompt = strip_agent_keyword(&final_text);
+                                        let mgr_guard = agent_manager.lock().unwrap();
+                                        if let Some(ref m) = *mgr_guard {
+                                            let _ = m.spawn(prompt, None, None).await;
+                                        }
                                         voice_state.store(STATE_IDLE, Ordering::SeqCst);
                                         idle_since = Some(std::time::Instant::now());
+                                    } else {
+                                        voice_state.store(STATE_PROCESSING, Ordering::SeqCst);
+                                        let screenshot = if should_attach_screenshot(&final_text) {
+                                            screen.lock().unwrap().capture_cursor_screen().await.ok()
+                                        } else {
+                                            None
+                                        };
+                                        let llm_c = llm.clone();
+                                        let tts_c = tts.clone();
+                                        let sys = system_prompt.clone();
+                                        let lib = filler_library.clone();
+                                        let text = final_text.clone();
+                                        let interim = interim_for_respond;
+                                        let vs = voice_state.clone();
+                                        let cancel = response_cancel.clone();
+                                        let overlay_tx = overlay_tx.clone();
+                                        response_cancel.store(false, Ordering::SeqCst);
+                                        voice_state.store(STATE_RESPONDING, Ordering::SeqCst);
+                                        eprintln!("notclicky: sending to LLM...");
+                                        std::thread::spawn(move || {
+                                            let rt = tokio::runtime::Runtime::new().unwrap();
+                                            let result = rt.block_on(respond_with_pipeline(
+                                                &llm_c, &tts_c, &sys, &text,
+                                                screenshot.as_ref(), &lib, &cancel,
+                                                interim,
+                                                overlay_tx,
+                                            ));
+                                            if let Err(e) = result {
+                                                eprintln!("notclicky: response error: {}", e);
+                                            }
+                                            vs.compare_exchange(STATE_RESPONDING, STATE_IDLE, Ordering::SeqCst, Ordering::SeqCst).ok();
+                                        });
                                     }
-
-                                    if voice_state.load(Ordering::SeqCst) == STATE_IDLE {
-                                        let _ = capture.lock().unwrap().start();
-                                    }
-                                    break;
+                                } else {
+                                    eprintln!("notclicky: no speech detected after wake word");
+                                    voice_state.store(STATE_IDLE, Ordering::SeqCst);
+                                    idle_since = Some(std::time::Instant::now());
                                 }
+
+                                if voice_state.load(Ordering::SeqCst) == STATE_IDLE {
+                                    let _ = capture.lock().unwrap().start();
+                                }
+                                wake_word_capture_started = false;
+                                break;
                             }
-                            Err(e) => {
-                                eprintln!("notclicky: wake word transcript error: {}", e);
-                            }
+                        }
+                        Err(e) => {
+                            eprintln!("notclicky: wake word transcript error: {}", e);
                         }
                     }
                 }
@@ -480,122 +481,121 @@ async fn respond_with_pipeline(
     cancel: &AtomicBool,
     interim_text: String,
     overlay_tx: mpsc::Sender<OverlayCommand>,
-    ) -> anyhow::Result<()> {
+) -> anyhow::Result<()> {
     let pipeline_future = async {
         let mut player = AudioPlayer::new();
 
         if let Some(filler) = filler_library.pick_for_transcript(user_text) {
-        let audio = filler.audio.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(FILLER_DELAY_MS));
-            let _ = AudioPlayer::play_blocking(&audio);
-        });
-    }
-
-    let use_speculative = !interim_text.trim().is_empty()
-        && crate::ai::prefire::compute_divergence(&interim_text, user_text) <= 0.15;
-
-    let (stream, _is_speculative) = if use_speculative {
-        let req = build_prefire_request(&interim_text, system_prompt);
-        match llm.lock().unwrap().stream(req).await {
-            Ok(s) => {
-                eprintln!("notclicky: using speculative stream (pre-fire hit)");
-                (s, true)
-            }
-            Err(e) => {
-                eprintln!("notclicky: speculative stream failed: {}, falling back", e);
-                let user_content = if let Some(screenshot) = screenshot {
-                    let b64 = base64_encode(&screenshot.image_data);
-                    format!("{}\n\n[data:image/jpeg;base64,{}]", user_text, b64)
-                } else {
-                    user_text.to_string()
-                };
-                let req = crate::ai::providers::LlmRequest {
-                    messages: vec![
-                        crate::ai::providers::LlmMessage {
-                            role: "system".to_string(),
-                            content: system_prompt.to_string(),
-                        },
-                        crate::ai::providers::LlmMessage {
-                            role: "user".to_string(),
-                            content: user_content,
-                        },
-                    ],
-                    model: None,
-                    max_tokens: None,
-                    temperature: None,
-                };
-                (llm.lock().unwrap().stream(req).await?, false)
-            }
+            let audio = filler.audio.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(FILLER_DELAY_MS));
+                let _ = AudioPlayer::play_blocking(&audio);
+            });
         }
-    } else {
-        if !interim_text.trim().is_empty() {
-            eprintln!("notclicky: speculative pre-fire skipped (divergence > 15%)");
-        }
-        let user_content = if let Some(screenshot) = screenshot {
-            let b64 = base64_encode(&screenshot.image_data);
-            format!("{}\n\n[data:image/jpeg;base64,{}]", user_text, b64)
+
+        let use_speculative = !interim_text.trim().is_empty()
+            && crate::ai::prefire::compute_divergence(&interim_text, user_text) <= 0.15;
+
+        let (stream, _is_speculative) = if use_speculative {
+            let req = build_prefire_request(&interim_text, system_prompt);
+            match llm.lock().unwrap().stream(req).await {
+                Ok(s) => {
+                    eprintln!("notclicky: using speculative stream (pre-fire hit)");
+                    (s, true)
+                }
+                Err(e) => {
+                    eprintln!("notclicky: speculative stream failed: {}, falling back", e);
+                    let user_content = if let Some(screenshot) = screenshot {
+                        let b64 = base64_encode(&screenshot.image_data);
+                        format!("{}\n\n[data:image/jpeg;base64,{}]", user_text, b64)
+                    } else {
+                        user_text.to_string()
+                    };
+                    let req = crate::ai::providers::LlmRequest {
+                        messages: vec![
+                            crate::ai::providers::LlmMessage {
+                                role: "system".to_string(),
+                                content: system_prompt.to_string(),
+                            },
+                            crate::ai::providers::LlmMessage {
+                                role: "user".to_string(),
+                                content: user_content,
+                            },
+                        ],
+                        model: None,
+                        max_tokens: None,
+                        temperature: None,
+                    };
+                    (llm.lock().unwrap().stream(req).await?, false)
+                }
+            }
         } else {
-            user_text.to_string()
+            if !interim_text.trim().is_empty() {
+                eprintln!("notclicky: speculative pre-fire skipped (divergence > 15%)");
+            }
+            let user_content = if let Some(screenshot) = screenshot {
+                let b64 = base64_encode(&screenshot.image_data);
+                format!("{}\n\n[data:image/jpeg;base64,{}]", user_text, b64)
+            } else {
+                user_text.to_string()
+            };
+            let req = crate::ai::providers::LlmRequest {
+                messages: vec![
+                    crate::ai::providers::LlmMessage {
+                        role: "system".to_string(),
+                        content: system_prompt.to_string(),
+                    },
+                    crate::ai::providers::LlmMessage {
+                        role: "user".to_string(),
+                        content: user_content,
+                    },
+                ],
+                model: None,
+                max_tokens: None,
+                temperature: None,
+            };
+            (llm.lock().unwrap().stream(req).await?, false)
         };
-        let req = crate::ai::providers::LlmRequest {
-            messages: vec![
-                crate::ai::providers::LlmMessage {
-                    role: "system".to_string(),
-                    content: system_prompt.to_string(),
-                },
-                crate::ai::providers::LlmMessage {
-                    role: "user".to_string(),
-                    content: user_content,
-                },
-            ],
-            model: None,
-            max_tokens: None,
-            temperature: None,
-        };
-        (llm.lock().unwrap().stream(req).await?, false)
-    };
 
-    eprintln!("notclicky: requesting LLM stream...");
-    eprintln!("notclicky: LLM stream connected");
+        eprintln!("notclicky: LLM stream connected");
 
-    let overlay_tx_for_points = overlay_tx.clone();
-    let point_stream = stream.map(move |token_result| {
-        if let Ok(token) = &token_result {
-            let _ = process_stream_token(token, &overlay_tx_for_points);
+        let overlay_tx_for_points = overlay_tx.clone();
+        let point_stream = stream.map(move |token_result| {
+            if let Ok(token) = &token_result {
+                let _ = process_stream_token(token, &overlay_tx_for_points);
+            }
+            token_result
+        });
+
+        let mut sentence_stream = SentenceStream::new(Box::pin(point_stream));
+        let tts_provider = tts.lock().unwrap();
+
+        while let Some(sentence) = futures::StreamExt::next(&mut sentence_stream).await {
+            if cancel.load(Ordering::SeqCst) {
+                player.stop();
+                break;
+            }
+            if !sentence.is_empty() {
+                let tts_fut = tts_provider.synthesize(&sentence);
+                match tokio::time::timeout(std::time::Duration::from_secs(15), tts_fut).await {
+                    Ok(Ok(audio_data)) => {
+                        player.enqueue(audio_data);
+                    }
+                    Ok(Err(e)) => eprintln!("TTS error: {}", e),
+                    Err(_) => eprintln!("TTS timeout for sentence: {}", sentence),
+                }
+            }
         }
-        token_result
-    });
 
-    let mut sentence_stream = SentenceStream::new(Box::pin(point_stream));
-    let tts_provider = tts.lock().unwrap();
+        while !cancel.load(Ordering::SeqCst) && player.is_playing() {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
 
-    while let Some(sentence) = futures::StreamExt::next(&mut sentence_stream).await {
         if cancel.load(Ordering::SeqCst) {
             player.stop();
-            break;
         }
-        if !sentence.is_empty() {
-            let tts_fut = tts_provider.synthesize(&sentence);
-            match tokio::time::timeout(std::time::Duration::from_secs(15), tts_fut).await {
-                Ok(Ok(audio_data)) => {
-                    player.enqueue(audio_data);
-                }
-                Ok(Err(e)) => eprintln!("TTS error: {}", e),
-                Err(_) => eprintln!("TTS timeout for sentence: {}", sentence),
-            }
-        }
-    }
 
-    while !cancel.load(Ordering::SeqCst) && player.is_playing() {
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-
-    if cancel.load(Ordering::SeqCst) {
-        player.stop();
-    }
-
-    Ok(())
+        Ok(())
     };
 
     tokio::time::timeout(std::time::Duration::from_secs(120), pipeline_future).await?

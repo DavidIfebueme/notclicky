@@ -205,8 +205,6 @@ pub struct DeepgramWakeWordSession {
         Message,
     >,
     _sample_rate: u32,
-    buffer: Vec<f32>,
-    chunk_size: usize,
 }
 
 impl DeepgramWakeWordSession {
@@ -223,35 +221,19 @@ impl DeepgramWakeWordSession {
         let (ws, _) = connect_async(request).await?;
         let (ws_sink, ws_stream) = ws.split();
 
-        let chunk_size = (sample_rate as usize * 100) / 1000;
-
         Ok(Self {
             ws_stream,
             ws_sink,
             _sample_rate: sample_rate,
-            buffer: Vec::new(),
-            chunk_size,
         })
     }
 
     pub async fn send_audio(&mut self, audio: &[f32]) -> Result<()> {
-        self.buffer.extend_from_slice(audio);
-
-        while self.buffer.len() >= self.chunk_size {
-            let chunk: Vec<f32> = self.buffer.drain(0..self.chunk_size).collect();
-            let pcm = encode_pcm_i16(&chunk);
-            self.ws_sink.send(Message::Binary(pcm.into())).await?;
+        if audio.is_empty() {
+            return Ok(());
         }
-
-        Ok(())
-    }
-
-    pub async fn flush_buffer(&mut self) -> Result<()> {
-        if !self.buffer.is_empty() {
-            let pcm = encode_pcm_i16(&self.buffer);
-            self.ws_sink.send(Message::Binary(pcm.into())).await?;
-            self.buffer.clear();
-        }
+        let pcm = encode_pcm_i16(audio);
+        self.ws_sink.send(Message::Binary(pcm.into())).await?;
         Ok(())
     }
 
@@ -264,9 +246,13 @@ impl DeepgramWakeWordSession {
                             "Results" | "Transcript" => {
                                 if let Some(channel) = parsed.channel {
                                     if let Some(alt) = channel.channel.alternatives.first() {
+                                        let transcript_text = alt.transcript.trim().to_string();
+                                        if !transcript_text.is_empty() {
+                                            eprintln!("notclicky: wake word heard \"{}\" (final={})", transcript_text, parsed.msg_type == "Results");
+                                        }
                                         let is_final = parsed.msg_type == "Results";
                                         return Some(Ok(WakeWordTranscript {
-                                            text: alt.transcript.trim().to_string(),
+                                            text: transcript_text,
                                             is_final,
                                         }));
                                     }
@@ -285,7 +271,6 @@ impl DeepgramWakeWordSession {
     }
 
     pub async fn close(&mut self) -> Result<()> {
-        self.flush_buffer().await?;
         self.ws_sink.send(Message::Close(None)).await?;
         Ok(())
     }

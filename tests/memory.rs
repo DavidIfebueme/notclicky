@@ -37,8 +37,10 @@ fn wiki_search() {
     let dir = TempDir::new().unwrap();
     let mut wiki = notclicky::memory::wiki::WikiManager::new(PathBuf::from(dir.path()));
 
-    wiki.create("Rust Programming", "Rust is a systems language", None).unwrap();
-    wiki.create("Python Guide", "Python is interpreted", None).unwrap();
+    wiki.create("Rust Programming", "Rust is a systems language", None)
+        .unwrap();
+    wiki.create("Python Guide", "Python is interpreted", None)
+        .unwrap();
 
     let results = wiki.search("rust");
     assert_eq!(results.len(), 1);
@@ -88,8 +90,15 @@ fn conversation_history_compacts() {
         history.add(format!("user {}", i), long_msg.clone());
     }
 
-    assert!(history.exchanges().len() <= 8, "should compact to at most 8 exchanges, got {}", history.exchanges().len());
-    assert!(!history.archive().is_empty(), "archive should contain compacted exchanges");
+    assert!(
+        history.exchanges().len() <= 8,
+        "should compact to at most 8 exchanges, got {}",
+        history.exchanges().len()
+    );
+    assert!(
+        !history.archive().is_empty(),
+        "archive should contain compacted exchanges"
+    );
 }
 
 #[test]

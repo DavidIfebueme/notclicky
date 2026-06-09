@@ -13,7 +13,10 @@ fn parse_single_point() {
 fn parse_type_point() {
     let points = notclicky::ai::point_parser::parse_points("[TYPE:50,75:Submit button]");
     assert_eq!(points.len(), 1);
-    assert_eq!(points[0].point_type, notclicky::ai::point_parser::PointType::Type);
+    assert_eq!(
+        points[0].point_type,
+        notclicky::ai::point_parser::PointType::Type
+    );
     assert_eq!(points[0].label, "Submit button");
 }
 
@@ -37,8 +40,14 @@ fn parse_mixed_text_and_points() {
     let text = "Click on [POINT:500,300:File menu] then go to [TYPE:100,200:OK button]";
     let points = notclicky::ai::point_parser::parse_points(text);
     assert_eq!(points.len(), 2);
-    assert_eq!(points[0].point_type, notclicky::ai::point_parser::PointType::Point);
-    assert_eq!(points[1].point_type, notclicky::ai::point_parser::PointType::Type);
+    assert_eq!(
+        points[0].point_type,
+        notclicky::ai::point_parser::PointType::Point
+    );
+    assert_eq!(
+        points[1].point_type,
+        notclicky::ai::point_parser::PointType::Type
+    );
 }
 
 #[test]

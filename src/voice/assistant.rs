@@ -182,7 +182,52 @@ async fn pipeline_loop(
 
             let audio = capture.lock().unwrap().stop();
             if !audio.is_empty() {
-                let transcript = transcribe(&audio, sample_rate, &stt, &deepgram_api_key).await;
+                let (transcript, ptt_interim) = if let Some(ref key) = deepgram_api_key {
+                    match DeepgramStreamingSession::connect(key).await {
+                        Ok(mut session) => {
+                            if session.send_audio(&audio).await.is_err() {
+                                let provider = DeepgramSttProvider::new(key.clone());
+                                let wav = encode_wav(&audio, sample_rate);
+                                let text = provider.transcribe_bytes(&wav).await.unwrap_or_default();
+                                (text, String::new())
+                            } else {
+                                let _ = session.finalize().await;
+                                let mut final_text = String::new();
+                                let mut first_interim = String::new();
+                                while let Some(t) = session.next_transcript().await {
+                                    match t {
+                                        Ok(t) if t.is_final && !t.text.is_empty() => {
+                                            final_text = t.text.clone();
+                                        }
+                                        Ok(t) => {
+                                            if !t.text.is_empty() && first_interim.is_empty() {
+                                                first_interim = t.text;
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                let _ = session.close().await;
+                                if final_text.is_empty() {
+                                    let provider = DeepgramSttProvider::new(key.clone());
+                                    let wav = encode_wav(&audio, sample_rate);
+                                    (provider.transcribe_bytes(&wav).await.unwrap_or_default(), first_interim)
+                                } else {
+                                    (final_text, first_interim)
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            let provider = DeepgramSttProvider::new(key.clone());
+                            let wav = encode_wav(&audio, sample_rate);
+                            (provider.transcribe_bytes(&wav).await.unwrap_or_default(), String::new())
+                        }
+                    }
+                } else {
+                    let text = stt.lock().unwrap().transcribe(&audio, sample_rate).await.map(|t| t.text).unwrap_or_default();
+                    (text, String::new())
+                };
+
                 eprintln!("notclicky: ptt transcript = {:?}", if transcript.is_empty() { "(empty)".to_string() } else { transcript.clone() });
 
                 if !transcript.trim().is_empty() {
@@ -219,7 +264,7 @@ async fn pipeline_loop(
                             let _ = rt.block_on(respond_with_pipeline(
                                 &llm_c, &tts_c, &sys, &text,
                                 screenshot.as_ref(), &lib, &cancel,
-                                String::new(),
+                                ptt_interim,
                                 overlay_tx,
                             ));
                             vs.compare_exchange(STATE_RESPONDING, STATE_IDLE, Ordering::SeqCst, Ordering::SeqCst).ok();
@@ -419,58 +464,6 @@ async fn pipeline_loop(
     }
 }
 
-async fn transcribe(
-    audio: &[f32],
-    sample_rate: u32,
-    stt: &Arc<Mutex<Box<dyn SttProvider>>>,
-    deepgram_api_key: &Option<String>,
-) -> String {
-    if audio.is_empty() {
-        return String::new();
-    }
-
-    if let Some(key) = deepgram_api_key {
-        match DeepgramStreamingSession::connect(key).await {
-            Ok(mut session) => {
-                if session.send_audio(audio).await.is_err() {
-                    let provider = DeepgramSttProvider::new(key.clone());
-                    let wav_data = encode_wav(audio, sample_rate);
-                    return provider.transcribe_bytes(&wav_data).await.unwrap_or_default();
-                }
-                let _ = session.finalize().await;
-                let mut result = String::new();
-                while let Some(t) = session.next_transcript().await {
-                    match t {
-                        Ok(t) if t.is_final && !t.text.is_empty() => {
-                            result = t.text;
-                        }
-                        Ok(t) if t.is_utterance_end => break,
-                        _ => {}
-                    }
-                }
-                let _ = session.close().await;
-                if result.is_empty() {
-                    let provider = DeepgramSttProvider::new(key.clone());
-                    let wav_data = encode_wav(audio, sample_rate);
-                    provider.transcribe_bytes(&wav_data).await.unwrap_or_default()
-                } else {
-                    result
-                }
-            }
-            Err(_) => {
-                let provider = DeepgramSttProvider::new(deepgram_api_key.clone().unwrap());
-                let wav_data = encode_wav(audio, sample_rate);
-                provider.transcribe_bytes(&wav_data).await.unwrap_or_default()
-            }
-        }
-    } else {
-        stt.lock().unwrap().transcribe(audio, sample_rate)
-            .await
-            .map(|t| t.text)
-            .unwrap_or_default()
-    }
-}
-
 async fn respond_with_pipeline(
     llm: &Arc<Mutex<Box<dyn LlmProvider>>>,
     tts: &Arc<Mutex<Box<dyn TtsProvider>>>,
@@ -478,12 +471,16 @@ async fn respond_with_pipeline(
     user_text: &str,
     screenshot: Option<&crate::screen::capture::CaptureResult>,
     filler_library: &FillerLibrary,
-    cancel: &AtomicBool,
+    cancel: &Arc<AtomicBool>,
     interim_text: String,
     overlay_tx: mpsc::Sender<OverlayCommand>,
 ) -> anyhow::Result<()> {
+    use std::sync::mpsc as sync_mpsc;
+
     let pipeline_future = async {
         let mut player = AudioPlayer::new();
+        let (audio_tx, audio_rx) = sync_mpsc::channel::<Vec<u8>>();
+        let pending_tts = Arc::new(std::sync::atomic::AtomicU32::new(0));
 
         if let Some(filler) = filler_library.pick_for_transcript(user_text) {
             let audio = filler.audio.clone();
@@ -568,7 +565,6 @@ async fn respond_with_pipeline(
         });
 
         let mut sentence_stream = SentenceStream::new(Box::pin(point_stream));
-        let tts_provider = tts.lock().unwrap();
 
         while let Some(sentence) = futures::StreamExt::next(&mut sentence_stream).await {
             if cancel.load(Ordering::SeqCst) {
@@ -576,23 +572,38 @@ async fn respond_with_pipeline(
                 break;
             }
             if !sentence.is_empty() {
-                let tts_fut = tts_provider.synthesize(&sentence);
-                match tokio::time::timeout(std::time::Duration::from_secs(15), tts_fut).await {
-                    Ok(Ok(audio_data)) => {
-                        player.enqueue(audio_data);
+                pending_tts.fetch_add(1, Ordering::SeqCst);
+                let tts_clone = tts.clone();
+                let tx = audio_tx.clone();
+                let pending_clone = pending_tts.clone();
+                std::thread::spawn(move || {
+                    let rt = tokio::runtime::Runtime::new().unwrap();
+                    let audio_data = {
+                        let provider = tts_clone.lock().unwrap();
+                        rt.block_on(provider.synthesize(&sentence))
+                    };
+                    if let Ok(data) = audio_data {
+                        let _ = tx.send(data);
                     }
-                    Ok(Err(e)) => eprintln!("TTS error: {}", e),
-                    Err(_) => eprintln!("TTS timeout for sentence: {}", sentence),
-                }
+                    pending_clone.fetch_sub(1, Ordering::SeqCst);
+                });
             }
         }
 
-        while !cancel.load(Ordering::SeqCst) && player.is_playing() {
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        }
+        drop(audio_tx);
 
-        if cancel.load(Ordering::SeqCst) {
-            player.stop();
+        loop {
+            while let Ok(data) = audio_rx.try_recv() {
+                player.enqueue(data);
+            }
+            if pending_tts.load(Ordering::SeqCst) == 0 && !player.is_playing() {
+                break;
+            }
+            if cancel.load(Ordering::SeqCst) {
+                player.stop();
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
 
         Ok(())

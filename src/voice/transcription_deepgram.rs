@@ -151,17 +151,12 @@ impl DeepgramStreamingSession {
                                         return Some(Ok(StreamingTranscript {
                                             text: alt.transcript.trim().to_string(),
                                             is_final,
-                                            is_utterance_end: false,
                                         }));
                                     }
                                 }
                             }
                             "UtteranceEnd" => {
-                                return Some(Ok(StreamingTranscript {
-                                    text: String::new(),
-                                    is_final: true,
-                                    is_utterance_end: true,
-                                }));
+                                return None;
                             }
                             _ => continue,
                         }
@@ -179,7 +174,6 @@ impl DeepgramStreamingSession {
 pub struct StreamingTranscript {
     pub text: String,
     pub is_final: bool,
-    pub is_utterance_end: bool,
 }
 
 fn encode_pcm_i16(samples: &[f32]) -> Vec<u8> {

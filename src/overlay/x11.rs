@@ -1,7 +1,7 @@
 use anyhow::Result;
 use gtk4::gdk::{Display, Monitor};
 use gtk4::prelude::*;
-use gtk4::{ApplicationWindow, DrawingArea};
+use gtk4::{ApplicationWindow, DrawingArea, CssProvider};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc;
@@ -70,8 +70,13 @@ impl X11Overlay {
             .resizable(false)
             .build();
 
+        let _ = window.set_property("keep-above", &true);
+
         let display = Display::default();
         let (max_w, max_h) = if let Some(d) = display {
+            let css = CssProvider::new();
+            css.load_from_data("window { background: transparent; }");
+            gtk4::style_context_add_provider_for_display(&d, &css, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
             let monitors = d.monitors();
             let n = monitors.n_items();
             let mut mw = 0i32;
@@ -89,6 +94,14 @@ impl X11Overlay {
         };
 
         window.set_default_size(max_w, max_h);
+
+        window.connect_realize(|win| {
+            if let Some(surface) = win.surface() {
+                let empty = gtk4::gdk::cairo::Region::create();
+                surface.set_opaque_region(Some(&empty));
+                surface.set_input_region(&empty);
+            }
+        });
 
         let state = Rc::new(RefCell::new(OverlayState {
             cursors: Vec::new(),
